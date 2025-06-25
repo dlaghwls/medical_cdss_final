@@ -13,6 +13,18 @@ from datetime import datetime
 from openmrs_integration.models import OpenMRSPatient
 from django.http import HttpResponse, JsonResponse # HttpResponse, JsonResponse import 추가
 
+from django.shortcuts import get_object_or_404 # 유정우넌할수있어
+from google.cloud import storage # 유정우넌할수있어
+from openmrs_integration.models import OpenMRSPatient # 유정우넌할수있어
+from django.http import Http404 # 유정우넌할수있어
+import tempfile # 유정우넌할수있어
+import os # 유정우넌할수있어
+import nibabel as nib # 유정우넌할수있어
+from rest_framework.parsers import MultiPartParser, FormParser # 유정우넌할수있어
+from pydicom.dataset import FileDataset, FileMetaDataset # 유정우넌할수있어
+from pydicom.uid import ExplicitVRLittleEndian, generate_uid # 유정우넌할수있어
+from datetime import datetime # 유정우넌할수있어
+from ai_segmentation_service.segmentation_flow import process_nifti_segmentation # 유정우넌할수있어
 logger = logging.getLogger(__name__)
 ORTHANC_AUTH = (settings.ORTHANC_USERNAME, settings.ORTHANC_PASSWORD)
 
@@ -500,3 +512,194 @@ class SeriesInstancesView(APIView):
         except Exception as e:
             logger.exception("SeriesInstancesView: 예상치 못한 오류")
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+# 유정우넌할수있어 여러개 파일 동시에 올리는거 구현중
+class NiftiUploadView(APIView):
+    parser_classes = [MultiPartParser, FormParser]
+
+    def post(self, request, *args, **kwargs):
+        patient_uuid = request.data.get('patient_uuid')
+        files = request.FILES.getlist('files')
+        modalities = request.data.getlist('modalities')
+
+        # --- 필드 유효성 검사 ---
+        if not patient_uuid:
+            return Response({"detail": "patient_uuid가 필요합니다."}, status=400)
+        if not files or not modalities:
+            return Response({"detail": "files와 modalities를 함께 보내야 합니다."}, status=400)
+        if len(files) != len(modalities):
+            return Response({"detail": "files와 modalities 개수가 다릅니다."}, status=400)
+        if len(files) > 3:
+            return Response({"detail": "최대 3개까지 업로드 가능합니다."}, status=400)
+
+        # --- 환자 검증 ---
+        try:
+            # 실제 사용하는 OpenMRSPatient 모델로 변경해야 합니다.
+            patient = get_object_or_404(OpenMRSPatient, uuid=patient_uuid)
+        except Http404:
+            return Response({"detail": "해당 UUID의 환자를 찾을 수 없습니다."}, status=404)
+
+        # --- 부족한 모달리티에 대해 더미 파일 처리 준비 ---
+        # 예: modalities=['FLAIR','DWI'] -> files, modalities 리스트에 ADC에 대한 항목 추가
+        all_modalities = ['FLAIR', 'DWI', 'ADC']
+        current_modalities = {mod: file for mod, file in zip(modalities, files)}
+        
+        processed_files = []
+        processed_modalities = []
+
+        for mod in all_modalities:
+            processed_modalities.append(mod)
+            processed_files.append(current_modalities.get(mod)) # 해당 모달리티가 없으면 None이 추가됨
+
+        # --- 처리 결과 저장할 리스트 ---
+        result = []
+
+        # --- 각 파일/모달리티마다 처리 ---
+        for nifti_file, modality in zip(processed_files, processed_modalities):
+            # 파일이 None이면 더미 데이터로 처리
+            if nifti_file is None:
+                # TODO: 더미 NIfTI 생성 또는 스킵 로직 구현
+                result.append({'modality': modality, 'status': 'dummy_generated'})
+                continue
+
+            # --- 실제 파일 처리: 임시 저장 → GCS 업로드 → DICOM 변환 → Orthanc 업로드 ---
+            tmp_path = None # finally 블록에서 사용하기 위해 초기화
+            try:
+                # 1) 임시 파일에 NIfTI 저장
+                with tempfile.NamedTemporaryFile(delete=False, suffix='.nii') as tmp:
+                    tmp_path = tmp.name
+                    for chunk in nifti_file.chunks():
+                        tmp.write(chunk)
+
+                # 2) Google Cloud Storage에 업로드
+                storage_client = storage.Client()
+                bucket = storage_client.bucket(settings.GCS_BUCKET_NAME)
+                # timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
+                # blob_name = f"nifti/{patient_uuid}/{modality}/{timestamp}_{os.path.basename(nifti_file.name)}"
+                # ── 세션 폴더 이름 (예: "20250625_1704") ──
+                session_folder = datetime.now().strftime('%Y%m%d_%H%M')
+
+                # GCS 경로: nifti/{patient_uuid}/{session_folder}/{modality}/파일명
+                blob_name = (
+                    f"nifti/{patient_uuid}/"
+                    f"{session_folder}/"
+                    f"{modality}/"
+                    f"{os.path.basename(nifti_file.name)}"
+                )                
+                bucket.blob(blob_name).upload_from_filename(tmp_path)
+
+                uploaded_blobs[modality.lower()] = f"gs://{settings.GCS_BUCKET_NAME}/{blob_name}"
+
+                # 3) NIfTI 파일을 DICOM으로 변환 및 Orthanc 업로드
+                img = nib.load(tmp_path).get_fdata()
+                study_uid = pydicom.uid.generate_uid()
+                series_uid = pydicom.uid.generate_uid()
+
+                for i in range(img.shape[2]):
+                    slice_data = (img[:, :, i] * 255).astype('uint16')
+
+                    # File Meta 생성
+                    file_meta = FileMetaDataset()
+                    file_meta.MediaStorageSOPClassUID    = '1.2.840.10008.5.1.4.1.1.2' # CT Image Storage
+                    file_meta.MediaStorageSOPInstanceUID = generate_uid()
+                    file_meta.TransferSyntaxUID          = ExplicitVRLittleEndian
+                    file_meta.ImplementationClassUID     = generate_uid()
+
+                    # FileDataset 생성
+                    ds = FileDataset("", {}, file_meta=file_meta, preamble=b"\0" * 128)
+
+                    # 필수 DICOM 태그 채우기
+                    ds.PatientID                 = patient.identifier
+                    ds.PatientName               = patient.display_name
+                    ds.Modality                  = modality
+                    ds.StudyInstanceUID          = study_uid
+                    ds.SeriesInstanceUID         = series_uid
+                    ds.SOPClassUID               = file_meta.MediaStorageSOPClassUID
+                    ds.SOPInstanceUID            = file_meta.MediaStorageSOPInstanceUID
+                    
+                    ds.Rows, ds.Columns          = slice_data.shape
+                    ds.SamplesPerPixel           = 1
+                    ds.PhotometricInterpretation = "MONOCHROME2"
+                    ds.PixelRepresentation       = 0
+                    ds.BitsAllocated             = 16
+                    ds.BitsStored                = 16
+                    ds.HighBit                   = 15
+                    ds.PixelData                 = slice_data.tobytes()
+
+                    ds.is_little_endian          = True
+                    ds.is_implicit_VR            = False
+                    
+                    # 4) 생성된 DICOM 슬라이스를 Orthanc에 업로드
+                    with tempfile.NamedTemporaryFile(suffix='.dcm') as dcm_tmp:
+                        ds.save_as(dcm_tmp.name, write_like_original=False)
+                        with open(dcm_tmp.name, 'rb') as fp:
+                            dicom_bytes = fp.read()
+
+                    resp = requests.post(
+                        f"{settings.ORTHANC_URL}/instances",
+                        data=dicom_bytes,
+                        auth=(settings.ORTHANC_USERNAME, settings.ORTHANC_PASSWORD),
+                        headers={'Content-Type': 'application/dicom'}
+                    )
+                    resp.raise_for_status()
+
+                result.append({'modality': modality, 'status': 'uploaded'})
+
+            except Exception as e:
+                result.append({'modality': modality, 'status': 'error', 'error': str(e)})
+            
+            finally:
+                # 임시 파일 삭제
+                if tmp_path and os.path.exists(tmp_path):
+                    os.remove(tmp_path)
+
+        return Response({'results': result}, status=201)
+
+
+####### 유정우넌할수있어 nnunet성공이후 추가 ###########
+class ListPatientSessionsView(APIView):
+    """
+    특정 환자의 모든 업로드 세션과 파일 목록을 GCS에서 조회합니다.
+    """
+    def get(self, request, patient_uuid, *args, **kwargs):
+        logger.info(f"GCS 파일 목록 조회 시작. 환자 UUID: {patient_uuid}")
+        try:
+            storage_client = storage.Client()
+            bucket = storage_client.bucket("final_model_data1") # GCS 버킷 이름
+
+            prefix = f"nifti/{patient_uuid}/"
+            blobs = bucket.list_blobs(prefix=prefix)
+
+            sessions_data = defaultdict(lambda: defaultdict(list))
+            
+            for blob in blobs:
+                parts = blob.name.split('/')
+                if len(parts) >= 5 and parts[-1]:
+                    session_id = parts[2]
+                    modality = parts[3]
+                    file_name = parts[4]
+                    
+                    sessions_data[session_id][modality].append({
+                        "name": file_name,
+                        "gcs_path": f"gs://{bucket.name}/{blob.name}",
+                        "viewer_url": f"/orthanc/viewer/{patient_uuid}/{session_id}/{modality}" 
+                    })
+
+            if not sessions_data:
+                logger.warning(f"환자 {patient_uuid}에 대한 GCS 파일이 없습니다.")
+                return Response([])
+
+            formatted_sessions = [
+                {"sessionId": session_id, "modalities": modalities}
+                for session_id, modalities in sessions_data.items()
+            ]
+            
+            sorted_sessions = sorted(formatted_sessions, key=lambda s: s['sessionId'], reverse=True)
+
+            logger.info(f"환자 {patient_uuid}에 대한 {len(sorted_sessions)}개의 세션을 찾았습니다.")
+            return Response(sorted_sessions)
+
+        except Exception as e:
+            logger.error(f"GCS 파일 목록 조회 중 오류 발생: {e}", exc_info=True)
+            return Response({"error": "서버에서 파일 목록을 가져오는 중 오류가 발생했습니다."}, status=500)

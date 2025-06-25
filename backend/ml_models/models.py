@@ -113,16 +113,16 @@ class StrokeMortalityPrediction(models.Model):
 
 class SOD2Assessment(models.Model):
     """SOD2 항산화 평가 결과"""
-    task = models.OneToOneField(PredictionTask, on_delete=models.CASCADE, verbose_name="예측 작업")
+    task = models.OneToOneField('PredictionTask', on_delete=models.CASCADE, verbose_name="예측 작업")
     
     age = models.IntegerField(verbose_name="나이")
     gender = models.CharField(max_length=10, verbose_name="성별")
     
     stroke_type = models.CharField(max_length=50, verbose_name="뇌졸중 유형")
-    stroke_date = models.DateField(null=True, blank=True, verbose_name="뇌졸중 발생일")
+    stroke_date = models.DateField(null=True, blank=True, verbose_name="뇌졸중 발생일")  # nullable로 변경
     nihss_score = models.IntegerField(verbose_name="NIHSS 점수")
     reperfusion_treatment = models.BooleanField(default=False, verbose_name="재관류 치료")
-    reperfusion_time = models.IntegerField(null=True, blank=True, verbose_name="재관류 시간(분)")
+    reperfusion_time = models.FloatField(null=True, blank=True, verbose_name="재관류 시간(시간)")  # 이미 nullable
     hours_after_stroke = models.FloatField(verbose_name="뇌졸중 후 경과 시간(시간)")
     
     current_sod2_level = models.FloatField(verbose_name="현재 SOD2 수치")
@@ -146,7 +146,7 @@ class SOD2Assessment(models.Model):
     
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="생성일")
     created_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL, # ★★★ 이 부분이 settings.AUTH_USER_MODEL로 되어 있어야 합니다. ★★★
+        settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL, 
         null=True, blank=True,
         related_name='created_sod2_assessments',

@@ -6,6 +6,7 @@ from accounts.views import MyTokenObtainPairView
 
 urlpatterns = [
     path("admin/", admin.site.urls),
+    path('api/pacs/', include('pacs.urls')), # 유정우넌할수있어
     
     # API v1 paths
     path('api/token/', MyTokenObtainPairView.as_view(), name='token_obtain_pair'),
@@ -17,7 +18,6 @@ urlpatterns = [
     path('api/lab-results/', include('lab_results.urls')),
     path('api/chat/', include('chat.urls')), 
     path('api/auth/', include('accounts.urls')),
-    path('api/pacs/', include('pacs.urls')),
     path('api/patients/', get_django_patient_list_only, name='patient-list-direct'),
     path('api/patients/', include('patients.urls')),
     path('api/vitals/', include('vitals.urls')),

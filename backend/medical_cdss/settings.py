@@ -180,9 +180,9 @@ CORS_ALLOW_ALL_ORIGINS = os.getenv('CORS_ALLOW_ALL_ORIGINS', 'True').lower() == 
 CORS_ALLOW_CREDENTIALS = True
 
 # 🔧 CORS 설정 수정 - 3001 포트 추가
-CORS_ALLOWED_ORIGINS_ENV = os.getenv('CORS_ALLOWED_ORIGINS', "http://localhost:3000,http://127.0.0.1:3000,http://0.0.0.0:3000,http://34.64.188.9:3001,http://medical-react-frontend:3000,http://react-frontend:3000")
-CORS_ALLOWED_ORIGINS = [origin.strip() for origin in CORS_ALLOWED_ORIGINS_ENV.split(',')]
-
+# CORS_ALLOWED_ORIGINS_ENV = os.getenv('CORS_ALLOWED_ORIGINS', "http://localhost:3000,http://127.0.0.1:3000,http://0.0.0.0:3000,http://34.64.188.9:3001,http://medical-react-frontend:3000,http://react-frontend:3000")
+# CORS_ALLOWED_ORIGINS = [origin.strip() for origin in CORS_ALLOWED_ORIGINS_ENV.split(',')]
+CORS_ALLOW_ALL_ORIGINS = True #유정우넌할수있어 잠시설정해놈
 CORS_ALLOW_HEADERS = [
     'accept', 'accept-encoding', 'authorization', 'content-type', 'dnt',
     'origin', 'user-agent', 'x-csrftoken', 'x-requested-with',

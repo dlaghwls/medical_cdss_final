@@ -4,6 +4,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.views import APIView
 from django.shortcuts import get_object_or_404
+from io import StringIO
 # from django.http import JsonResponse # 필요하지 않을 수 있으므로 주석 처리
 
 # 2025/06/12 / 16:22 반영
@@ -19,7 +20,6 @@ import uuid
 from datetime import datetime
 from .ml_service import ml_service
 from .sod2_service import sod2_service
-from .tasks import run_gene_inference_task
 
 # 사망률 예측을 위한 추가 import
 import numpy as np
@@ -98,7 +98,7 @@ def save_predictions_data(request, patient_uuid):
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def assess_sod2_status(request):
-    """SOD2 상태 평가 API - LAB에서 호출"""
+    """SOD2 항산화 상태 평가 - 환자 정보 확실히 처리"""
     try:
         data = request.data
         patient_uuid = data.get('patient')
@@ -109,11 +109,26 @@ def assess_sod2_status(request):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        # 환자 정보 조회 - 올바른 모델 사용
+        # 환자 정보 조회
         patient = get_object_or_404(OpenMRSPatient, uuid=patient_uuid)
         
+        # ===== 프론트엔드에서 보낸 실제 나이/성별 사용 =====
+        # 프론트엔드에서 이미 환자 정보를 추출해서 보내므로 그것을 신뢰
+        final_age = data.get('age', 65)
+        final_gender = data.get('gender', 'M')
+        
+        logger.info(f"SOD2 평가 - 환자 {patient_uuid}, 나이: {final_age}, 성별: {final_gender}")
+        
+        # 평가 데이터 구성 (실제 나이/성별 포함)
+        assessment_data = {
+            'age': final_age,
+            'gender': final_gender,
+            'stroke_info': data.get('stroke_info', {}),
+            'patient': patient_uuid
+        }
+        
         # SOD2Service를 통한 평가 수행
-        assessment_result = sod2_service.assess_sod2_status(data)
+        assessment_result = sod2_service.assess_sod2_status(assessment_data)
         
         if 'error' in assessment_result:
             return Response(
@@ -124,15 +139,14 @@ def assess_sod2_status(request):
         # 평가 결과를 데이터베이스에 저장
         prediction_task = PredictionTask.objects.create(
             task_id=uuid.uuid4(),
-            patient=patient, # OpenMRSPatient 인스턴스 직접 전달
+            patient=patient,
             task_type='SOD2_ASSESSMENT',
             status='COMPLETED',
             input_data=data,
             predictions=assessment_result,
-            # created_by=request.user if request.user.is_authenticated else None # ⭐ created_by 인자 제거
         )
         
-        # stroke_date 처리
+        # stroke_date 안전 처리
         stroke_date_str = data.get('stroke_info', {}).get('stroke_date') or data.get('stroke_date')
         stroke_date = None
         if stroke_date_str:
@@ -140,19 +154,42 @@ def assess_sod2_status(request):
                 if isinstance(stroke_date_str, str):
                     stroke_date = datetime.strptime(stroke_date_str, '%Y-%m-%d').date()
                 else:
-                    stroke_date = stroke_date_str # 이미 date 객체일 경우
+                    stroke_date = stroke_date_str
             except ValueError:
                 logger.warning(f"날짜 형식 오류: {stroke_date_str}")
         
+        # reperfusion_time 안전 처리
+        reperfusion_time = assessment_result['patient_info'].get('reperfusion_time')
+        if reperfusion_time is not None:
+            try:
+                reperfusion_time = float(reperfusion_time)
+            except (ValueError, TypeError):
+                reperfusion_time = None
+        
+        # ===== SOD2 수준에 따른 동적 모니터링 일정 =====
+        current_sod2_level = assessment_result['sod2_status']['current_level']
+        risk_level = assessment_result['sod2_status']['oxidative_stress_risk']
+        
+        if current_sod2_level >= 0.9:  # 90% 이상
+            monitoring_text = "주간 SOD2 수준 확인"
+        elif current_sod2_level >= 0.85:  # 85-89%
+            monitoring_text = "예일 SOD2 수준 확인"
+        elif current_sod2_level >= 0.7:  # 70-84%
+            monitoring_text = "48시간 후 재평가"
+        elif current_sod2_level >= 0.5:  # 50-69%
+            monitoring_text = "24시간 후 재평가"
+        else:  # 50% 미만
+            monitoring_text = "12시간 후 재평가"
+        
         sod2_assessment = SOD2Analysis.objects.create(
-            task=prediction_task, # PredictionTask 인스턴스 연결
-            age=assessment_result['patient_info']['age'],
-            gender=assessment_result['patient_info']['gender'],
+            task=prediction_task,
+            age=final_age,  # 실제 나이 저장
+            gender=final_gender,  # 실제 성별 저장
             stroke_type=assessment_result['patient_info']['stroke_type'],
             stroke_date=stroke_date,
             nihss_score=assessment_result['patient_info']['nihss_score'],
-            reperfusion_treatment=assessment_result['patient_info'].get('reperfusion_treatment', False),
-            reperfusion_time=assessment_result['patient_info'].get('reperfusion_time'),
+            reperfusion_treatment=assessment_result['patient_info']['reperfusion_treatment'],
+            reperfusion_time=reperfusion_time,
             hours_after_stroke=assessment_result['patient_info']['hours_after_stroke'],
             current_sod2_level=assessment_result['sod2_status']['current_level'],
             sod2_prediction_data=assessment_result['sod2_prediction_data'],
@@ -160,19 +197,18 @@ def assess_sod2_status(request):
             prediction_confidence=assessment_result['sod2_status']['prediction_confidence'],
             exercise_can_start=assessment_result['exercise_recommendations']['can_start'],
             exercise_intensity=assessment_result['exercise_recommendations']['intensity'],
-            exercise_start_time=assessment_result['exercise_recommendations'].get('time_until_start'),
-            sod2_target_level=assessment_result['exercise_recommendations']['sod2_target'],
+            exercise_start_time=assessment_result['exercise_recommendations'].get('start_time'),
+            sod2_target_level=assessment_result['exercise_recommendations'].get('recommended_sod2_level', 0.85),
             age_adjustment_factor=assessment_result['personalization_factors']['age_adjustment'],
             stroke_type_adjustment=assessment_result['personalization_factors']['stroke_type_adjustment'],
             nihss_adjustment=assessment_result['personalization_factors']['nihss_adjustment'],
-            reperfusion_timing_adjustment=assessment_result['personalization_factors'].get('reperfusion_timing_adjustment', 1.0),
+            reperfusion_timing_adjustment=assessment_result['personalization_factors']['reperfusion_timing_adjustment'],
             clinical_recommendations='\n'.join(assessment_result['clinical_recommendations']),
-            exercise_recommendations=assessment_result['exercise_recommendations']['monitoring_schedule'],
-            monitoring_schedule=assessment_result['exercise_recommendations']['monitoring_schedule']
-            # created_by 필드 제거 또는 주석 처리 (SOD2Analysis 모델에 created_by 필드가 없다면)
+            exercise_recommendations=assessment_result['exercise_recommendations'],
+            monitoring_schedule={'text': monitoring_text}  # 단순한 구조로 저장
         )
         
-        logger.info(f"SOD2 평가 완료 - 환자: {patient.display_name}, 평가 ID: {sod2_assessment.id}")
+        logger.info(f"SOD2 평가 완료 - 환자: {patient.display_name}, 나이: {final_age}, 성별: {final_gender}, 평가 ID: {sod2_assessment.id}")
         
         return Response({
             'assessment_id': sod2_assessment.id,
@@ -189,24 +225,51 @@ def assess_sod2_status(request):
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def get_sod2_assessments(request, patient_uuid):
-    """환자의 SOD2 평가 이력 조회"""
+    """환자의 SOD2 평가 이력 조회 - 환자 정보 확실히 표시"""
     try:
         patient = get_object_or_404(OpenMRSPatient, uuid=patient_uuid)
         
-        # PredictionTask에서 patient 필드를 사용하여 필터링
+        # SOD2 평가 이력 조회
         assessments = SOD2Analysis.objects.filter(
-            task__patient=patient, # task__patient로 필터링
+            task__patient=patient,
             task__task_type='SOD2_ASSESSMENT'
         ).order_by('-task__created_at')
         
         results = []
         for assessment in assessments:
-            results.append({
+            # ===== 확실한 나이/성별 표시 =====
+            # DB에 저장된 실제 값 사용
+            age_display = f"{assessment.age}세" if assessment.age and assessment.age > 0 else 'N/A'
+            gender_display = '남성' if assessment.gender == 'M' else '여성' if assessment.gender == 'F' else 'N/A'
+            
+            # ===== 모니터링 일정 올바른 표시 =====
+            monitoring_display = "24시간 후 재평가"  # 기본값
+            if assessment.monitoring_schedule:
+                if isinstance(assessment.monitoring_schedule, dict):
+                    monitoring_display = assessment.monitoring_schedule.get('text', monitoring_display)
+                elif isinstance(assessment.monitoring_schedule, str):
+                    monitoring_display = assessment.monitoring_schedule
+            
+            # 안전한 재관류 시간 표시
+            reperfusion_time_display = None
+            if assessment.reperfusion_treatment and assessment.reperfusion_time is not None:
+                reperfusion_time_display = f"{assessment.reperfusion_time}시간"
+            
+            result_data = {
                 'id': assessment.id,
-                'recorded_at': assessment.task.created_at.isoformat(), # 날짜/시간 포맷 통일
+                'recorded_at': assessment.task.created_at.isoformat(),
+                'patient_info': {
+                    'age': assessment.age,
+                    'age_display': age_display,
+                    'gender': assessment.gender,
+                    'gender_display': gender_display,
+                },
+                # 호환성을 위해 최상위에도 추가
+                'age': assessment.age,
+                'gender': assessment.gender,
                 'current_sod2_level': assessment.current_sod2_level,
                 'oxidative_stress_risk': assessment.oxidative_stress_risk,
-                'overall_status': getattr(assessment, 'overall_antioxidant_status', None), # 필드가 없을 경우 None
+                'overall_status': getattr(assessment, 'overall_antioxidant_status', None),
                 'exercise_can_start': assessment.exercise_can_start,
                 'exercise_intensity': assessment.exercise_intensity,
                 'nihss_score': assessment.nihss_score,
@@ -216,19 +279,23 @@ def get_sod2_assessments(request, patient_uuid):
                 'clinical_recommendations': assessment.clinical_recommendations.split('\n') if assessment.clinical_recommendations else [],
                 'exercise_recommendations': assessment.exercise_recommendations,
                 'prediction_confidence': assessment.prediction_confidence,
-                'stroke_info': { # 클라이언트에서 SOD2 정보를 쉽게 파싱할 수 있도록 추가
+                'monitoring_schedule_display': monitoring_display,  # 표시용
+                'stroke_info': {
                     'stroke_type': assessment.stroke_type,
                     'nihss_score': assessment.nihss_score,
                     'reperfusion_treatment': assessment.reperfusion_treatment,
                     'reperfusion_time': assessment.reperfusion_time,
+                    'reperfusion_time_display': reperfusion_time_display,
                     'stroke_date': assessment.stroke_date.isoformat() if assessment.stroke_date else None,
                     'hours_after_stroke': assessment.hours_after_stroke,
                 },
-                'notes': assessment.task.input_data.get('notes', '') # 비고 필드가 input_data에 있다면
-            })
+                'notes': assessment.task.input_data.get('notes', '')
+            }
+            results.append(result_data)
         
         return Response({
             'patient_uuid': patient_uuid,
+            'patient_display': patient.display_name,
             'assessments': results,
             'total_count': len(results)
         })
@@ -936,29 +1003,35 @@ def submit_mortality_prediction_data(request):
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 # Gene model 관련
+from .tasks import run_gene_inference_task
 class GeneCSVUploadView(APIView):
-    permission_classes = [AllowAny]
-    
+    permission_classes = [AllowAny] # 필요에 따라 권한 설정
+
     def post(self, request, *args, **kwargs):
-        file_obj = request.FILES.get('file')
+        file_obj = request.FILES.get('file') # 업로드된 파일
+        patient_uuid = request.data.get('patient_uuid') # 프론트엔드에서 FormData로 보낸 patient_uuid
+
         if file_obj is None:
             return Response({'error': '파일이 없습니다. "file" 필드로 업로드 해주세요.'}, status=status.HTTP_400_BAD_REQUEST)
-        
-        try:
-            df = pd.read_csv(file_obj)
-        except Exception as e:
-            return Response({'error': f'CSV 파싱 실패: {e}'}, status=status.HTTP_400_BAD_REQUEST)
-        
-        # identifier 필드로 변경
-        try:
-            identifier = df["identifier"].iloc[0]
-        except Exception:
-            return Response({'error': 'identifier 컬럼이 없습니다.'}, status=status.HTTP_400_BAD_REQUEST)
-        
-        # CSV 리셋해서 다시 읽도록 file 포인터 초기화
-        file_obj.seek(0)
 
-        # Celery Task 비동기 호출
-        run_gene_inference_task.delay(file_content=file_obj.read(), identifier=identifier)
+        if patient_uuid is None:
+            return Response({'error': '환자 UUID가 제공되지 않았습니다. "patient_uuid" 필드로 전송해주세요.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # CSV 파일 내용을 읽어 유효성 검증 (필요한 경우) 및 처리
+        try:
+            # 파일 내용을 메모리에 읽어 DataFrame으로 변환
+            csv_content = file_obj.read().decode('utf-8')
+            df = pd.read_csv(StringIO(csv_content))
+
+        except pd.errors.EmptyDataError:
+            return Response({'error': '비어있는 CSV 파일입니다.'}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({'error': f'CSV 파싱 실패 또는 유효성 검사 오류: {e}'}, status=status.HTTP_400_BAD_REQUEST)
         
-        return Response({'message': f'업로드 성공. 환자ID {identifier}의 추론 요청이 접수되었습니다.'}, status=status.HTTP_202_ACCEPTED)
+        # Celery Task 비동기 호출
+        # run_gene_inference_task는 이제 patient_uuid를 직접 받아서 사용합니다.
+        # file_content는 다시 인코딩해서 보내거나, Celery 태스크에서 StringIO로 다시 읽을 수 있도록 처리.
+        # file_obj.read()는 이미 위에서 한 번 읽었으므로, csv_content를 사용합니다.
+        run_gene_inference_task.delay(file_content=csv_content, identifier=patient_uuid) # identifier 인자를 patient_uuid로 전달
+        
+        return Response({'message': f'업로드 성공. 환자ID {patient_uuid}의 추론 요청이 접수되었습니다.'}, status=status.HTTP_202_ACCEPTED)

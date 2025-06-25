@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import aiService from '../../services/aiService';
 
-const formatComplicationsRecord = (record) => {
+export const formatComplicationsRecord = (record) => {
     const complicationLabels = { 
         sepsis: '패혈증', 
         respiratory_failure: '호흡부전', 

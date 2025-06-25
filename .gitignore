@@ -39,3 +39,6 @@ staticfiles/
 medical_cdss_backup.zip
 node_modules/
 package-lock.json
+gcp-service-account.json
+*.json
+ai_segmentation_service/

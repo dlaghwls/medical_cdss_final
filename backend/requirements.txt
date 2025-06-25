@@ -40,3 +40,10 @@ pydicom
 
 # 유정우가 추가
 djangorestframework-simplejwt 
+
+# 유정우넌할수있어 
+google-cloud-storage
+nibabel
+SimpleITK
+lightgbm
+scikit-image

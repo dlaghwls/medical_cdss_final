@@ -4,7 +4,7 @@ import axios from 'axios';
 
 // 기존 LabResultsView.js에 있던 baseURL을 가져와서 사용합니다.
 const api = axios.create({
-    baseURL: 'http://34.60.244.247/api', // 실제 GCP Django 백엔드 URL
+    baseURL: 'http://34.64.188.9/api', // 실제 GCP Django 백엔드 URL
 });
 
 /**

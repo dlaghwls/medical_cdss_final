@@ -1,4 +1,3 @@
-// frontend/src/components/Vital/VitalSignsPage.js
 import React, { useState, useEffect } from 'react';
 import { fetchVitalsHistory, saveVitals } from '../../services/vitalApiService';
 
@@ -19,14 +18,6 @@ const VITAL_DEFINITIONS = {
 
 // 차트 생성을 위한 키 목록
 const CHARTABLE_VITALS = ['temp', 'hr', 'rr', 'spo2'];
-
-// 활력 징후별 정상 범위 정의 (새로 추가)
-const VITAL_NORMAL_RANGES = {
-    temp: { min: 36.5, max: 37.5 },
-    hr: { min: 60, max: 100 },
-    rr: { min: 12, max: 20 },
-    spo2: { min: 95, max: 100 },
-};
 
 // 초기 폼 상태
 const initialFormData = {
@@ -66,7 +57,6 @@ const VitalSignsPage = ({ selectedPatient, onBackToPatientList }) => {
         setError(null);
         try {
             const sessions = await fetchVitalsHistory(patientUuid);
-            // 최신 데이터가 먼저 오도록 정렬
             const sortedSessions = sessions.sort((a, b) => new Date(b.recorded_at) - new Date(a.recorded_at));
             setVitalSessions(sortedSessions);
         } catch (err) {
@@ -113,15 +103,14 @@ const VitalSignsPage = ({ selectedPatient, onBackToPatientList }) => {
                     spo2: formData.spo2 ? parseInt(formData.spo2) : null,
                 }
             };
-            
-            // 디버깅 강화: 서버로 보내기 직전의 데이터를 콘솔에 출력
+
             console.log("서버로 전송할 데이터 (sessionData):", JSON.stringify(sessionData, null, 2));
 
             await saveVitals(sessionData);
-            
+
             setSuccessMessage('활력 징후 세션이 성공적으로 등록되었습니다.');
             setFormData(initialFormData);
-            loadVitalSessions(selectedPatient.uuid); // 등록 후 목록 새로고침
+            loadVitalSessions(selectedPatient.uuid);
 
         } catch (err) {
             console.error("Error registering vital session:", err);
@@ -137,17 +126,16 @@ const VitalSignsPage = ({ selectedPatient, onBackToPatientList }) => {
         }
     };
 
-    // --- 차트 데이터 생성 함수 (기존과 동일) ---
     const generateChartData = (vitalKey) => {
-        const labels = vitalSessions.map(session => new Date(session.recorded_at).toLocaleString());
-        const dataValues = vitalSessions.map(session => session.measurements ? session.measurements[vitalKey] : null).filter(v => v != null);
+        const labels = vitalSessions.map(session => new Date(session.recorded_at).toLocaleString()).reverse();
+        const dataValues = vitalSessions.map(session => session.measurements ? session.measurements[vitalKey] : null).filter(v => v != null).reverse();
 
         return {
-            labels: labels.reverse(),
+            labels,
             datasets: [
                 {
                     label: `${VITAL_DEFINITIONS[vitalKey].name} (${VITAL_DEFINITIONS[vitalKey].unit})`,
-                    data: dataValues.reverse(),
+                    data: dataValues,
                     borderColor: 'rgb(75, 192, 192)',
                     backgroundColor: 'rgba(75, 192, 192, 0.2)',
                     tension: 0.1,
@@ -156,76 +144,38 @@ const VitalSignsPage = ({ selectedPatient, onBackToPatientList }) => {
         };
     };
 
-    // --- 차트 옵션 생성 함수 (정상 범위 강조 로직 추가) ---
-    const generateChartOptions = (vitalKey) => {
-        const normal = VITAL_NORMAL_RANGES[vitalKey]; // 해당 활력 징후의 정상 범위 가져오기
+    const generateBloodPressureChartData = () => {
+        const labels = vitalSessions.map(session => new Date(session.recorded_at).toLocaleString()).reverse();
+        const sbpData = vitalSessions.map(session => {
+            const bp = session.measurements?.bp;
+            if (bp && bp.includes('/')) return parseInt(bp.split('/')[0]);
+            return null;
+        }).filter(v => v != null).reverse();
+
+        const dbpData = vitalSessions.map(session => {
+            const bp = session.measurements?.bp;
+            if (bp && bp.includes('/')) return parseInt(bp.split('/')[1]);
+            return null;
+        }).filter(v => v != null).reverse();
 
         return {
-            responsive: true,
-            plugins: {
-                legend: { position: 'top' },
-                title: {
-                    display: true,
-                    text: `${VITAL_DEFINITIONS[vitalKey].name} 추이`,
+            labels,
+            datasets: [
+                {
+                    label: '수축기 혈압 (SBP)',
+                    data: sbpData,
+                    borderColor: 'rgb(255, 99, 132)',
+                    backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                    tension: 0.1,
                 },
-            },
-            scales: {
-                x: {
-                    title: { display: true, text: '측정 시각' },
+                {
+                    label: '이완기 혈압 (DBP)',
+                    data: dbpData,
+                    borderColor: 'rgb(54, 162, 235)',
+                    backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                    tension: 0.1,
                 },
-                y: {
-                    title: { display: true, text: '수치' },
-                    beginAtZero: false,
-                    // Y축 그리드 라인 커스터마이징
-                    grid: {
-                        color: function(context) {
-                            if (normal && context.tick) {
-                                // 정상 하한값과 일치하는 그리드 라인
-                                if (context.tick.value === normal.min) {
-                                    return 'green';
-                                }
-                                // 정상 상한값과 일치하는 그리드 라인
-                                if (context.tick.value === normal.max) {
-                                    return 'red';
-                                }
-                            }
-                            return 'rgba(0, 0, 0, 0.1)'; // 기본 그리드 라인 색상
-                        },
-                        lineWidth: function(context) {
-                            if (normal && context.tick) {
-                                if (context.tick.value === normal.min || context.tick.value === normal.max) {
-                                    return 2; // 정상 범위 라인을 더 두껍게
-                                }
-                            }
-                            return 1; // 기본 그리드 라인 두께
-                        },
-                        // 참고: 모든 라인을 점선으로 만들고 싶다면 아래 주석 해제 (특정 라인만은 아님)
-                        // borderDash: [6, 6],
-                    },
-                    // Y축 눈금(tick) 레이블 커스터마이징
-                    ticks: {
-                        color: function(context) {
-                            if (normal && context.tick) {
-                                if (context.tick.value === normal.min) {
-                                    return 'green'; // 정상 하한 레이블 색상
-                                }
-                                if (context.tick.value === normal.max) {
-                                    return 'red'; // 정상 상한 레이블 색상
-                                }
-                            }
-                            return 'black'; // 기본 눈금 레이블 색상
-                        },
-                        font: function(context) {
-                            if (normal && context.tick) {
-                                if (context.tick.value === normal.min || context.tick.value === normal.max) {
-                                    return { weight: 'bold' }; // 정상 범위 레이블 굵게
-                                }
-                            }
-                            return {}; // 기본 폰트 스타일
-                        }
-                    }
-                },
-            },
+            ],
         };
     };
 
@@ -236,7 +186,7 @@ const VitalSignsPage = ({ selectedPatient, onBackToPatientList }) => {
     return (
         <div style={{ padding: '20px' }}>
             <h3>활력 징후 관리 - {selectedPatient.display}</h3>
-            
+
             <div style={{ border: '1px solid #ccc', padding: '20px', borderRadius: '8px', marginBottom: '30px', backgroundColor: 'white' }}>
                 <h4>새 활력 징후 세션 입력</h4>
                 <form onSubmit={handleSubmit}>
@@ -276,15 +226,18 @@ const VitalSignsPage = ({ selectedPatient, onBackToPatientList }) => {
                 <h4>활력 징후 추이</h4>
                 {loading && <p>기록 로딩 중...</p>}
                 {vitalSessions.length > 0 ? (
-                    CHARTABLE_VITALS.map(key => (
-                        <div key={key} style={{ marginBottom: '20px' }}>
-                            <h5>{VITAL_DEFINITIONS[key].name} 추이</h5>
-                            <Line
-                                data={generateChartData(key)}
-                                options={generateChartOptions(key)} // 수정된 옵션 함수 적용
-                            />
+                    <>
+                        <div style={{ marginBottom: '20px' }}>
+                            <h5>혈압 추이 (SBP/DBP)</h5>
+                            <Line data={generateBloodPressureChartData()} />
                         </div>
-                    ))
+                        {CHARTABLE_VITALS.map(key => (
+                            <div key={key} style={{ marginBottom: '20px' }}>
+                                <h5>{VITAL_DEFINITIONS[key].name} 추이</h5>
+                                <Line data={generateChartData(key)} />
+                            </div>
+                        ))}
+                    </>
                 ) : (
                     !loading && <p>표시할 활력 징후 기록이 없습니다.</p>
                 )}

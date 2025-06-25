@@ -6,7 +6,9 @@ from .views import (
     PatientStudiesView,
     VerifyPacsIdView,
     SeriesInstancesView,
-    get_dicom_instance_data  # <-- 새로운 뷰 함수 import
+    get_dicom_instance_data,  # <-- 새로운 뷰 함수 import
+    NiftiUploadView, # 유정우넌할수있어
+    ListPatientSessionsView # 유정우넌할수있어
 )
 
 urlpatterns = [
@@ -28,4 +30,8 @@ urlpatterns = [
     # Cornerstone.js가 실제로 DICOM 파일의 바이너리 데이터를 가져올 엔드포인트입니다.
     # instance_id는 Orthanc 내부의 Instance UUID여야 합니다.
     path('dicom-instance-data/<str:instance_id>/', get_dicom_instance_data, name='dicom_instance_data'),
+    # 유정우넌할수있어 
+    path('upload-nifti/', NiftiUploadView.as_view(), name='upload-nifti'),
+    # 유정우넌할수있어 nnunet성공이후 추가
+    path('patient-sessions/<str:patient_uuid>/', ListPatientSessionsView.as_view(), name='list-patient-sessions'),
 ]

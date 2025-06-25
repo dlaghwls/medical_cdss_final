@@ -22,7 +22,7 @@ import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement
 import StudiesModal from '../pacs/StudiesModal';
 import axios from 'axios';
 import NiftiUploadManager from '../pacs/NiftiUploadManager';
-
+import { formatComplicationsRecord } from '../AI_result/Complication_history_view';
 
 // Chart.js 모듈 등록
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler);
@@ -427,32 +427,115 @@ const LabResultsView = ({ selectedPatient, onBackToPatientList, onSelectedPatien
         }
     };
     // --- [추가] SOD2 정보 포맷팅 함수 ---
-    const formatSod2Record = (record) => [
-        { label: '뇌졸중 유형', value: record.stroke_info?.stroke_type === 'ischemic_reperfusion' ? '허혈성 재관류' : (record.stroke_info?.stroke_type || 'N/A') },
-        { label: 'NIHSS 점수', value: `${record.stroke_info?.nihss_score ?? 'N/A'} 점` },
-        { label: '재관류 치료 여부', value: record.stroke_info?.reperfusion_treatment ? '예' : '아니오' },
-        { label: '재관류 시간', value: record.stroke_info?.reperfusion_time ? `${record.stroke_info.reperfusion_time} 시간` : 'N/A' },
-        { label: '뇌졸중 발생일', value: record.stroke_info?.stroke_date || 'N/A' },
-        { label: '뇌졸중 후 경과 시간', value: `${record.stroke_info?.hours_after_stroke ?? 'N/A'} 시간` },
-        { label: '기록 시각', value: new Date(record.recorded_at).toLocaleString() },
-        { label: '비고', value: record.notes || '없음' }
-    ];
-
-    // --- [추가] 합병증/투약 정보 포맷팅 함수 ---
-    const formatComplicationsRecord = (record) => {
-        const complicationLabels = { sepsis: '패혈증', respiratory_failure: '호흡부전', deep_vein_thrombosis: '심부정맥혈전증', pulmonary_embolism: '폐색전증', urinary_tract_infection: '요로감염', gastrointestinal_bleeding: '위장관 출혈' };
-        const medicationLabels = { anticoagulant_flag: '항응고제', antiplatelet_flag: '항혈소판제', thrombolytic_flag: '혈전용해제', antihypertensive_flag: '항고혈압제', statin_flag: '스타틴', antibiotic_flag: '항생제', vasopressor_flag: '승압제' };
-
-        const complicationEntries = Object.entries(record.complications || {}).filter(([, value]) => value).map(([key]) => complicationLabels[key]);
-        const medicationEntries = Object.entries(record.medications || {}).filter(([, value]) => value).map(([key]) => medicationLabels[key]);
-
-        return [
-            { label: '조회된 합병증', value: complicationEntries.length > 0 ? complicationEntries.join(', ') : '해당 없음' },
-            { label: '처방된 약물', value: medicationEntries.length > 0 ? medicationEntries.join(', ') : '해당 없음' },
-            { label: '기록 시각', value: new Date(record.recorded_at).toLocaleString() },
-            { label: '비고', value: record.notes || '없음' }
-        ];
+    const formatSod2Record = (record) => {
+    const recordDate = new Date(record.recorded_at).toLocaleString('ko-KR');
+    
+    // ===== 확실한 환자 정보 표시 =====
+    // 여러 경로에서 나이/성별 찾기
+    let ageDisplay = 'N/A';
+    let genderDisplay = 'N/A';
+    
+    // 1순위: patient_info에서 찾기
+    if (record.patient_info?.age_display) {
+        ageDisplay = record.patient_info.age_display;
+    } else if (record.patient_info?.age && record.patient_info.age > 0) {
+        ageDisplay = `${record.patient_info.age}세`;
+    }
+    // 2순위: 최상위 레벨에서 찾기
+    else if (record.age && record.age > 0) {
+        ageDisplay = `${record.age}세`;
+    }
+    
+    // 성별도 동일한 방식
+    if (record.patient_info?.gender_display) {
+        genderDisplay = record.patient_info.gender_display;
+    } else if (record.patient_info?.gender) {
+        genderDisplay = record.patient_info.gender === 'M' ? '남성' : 
+                       record.patient_info.gender === 'F' ? '여성' : 'N/A';
+    } else if (record.gender) {
+        genderDisplay = record.gender === 'M' ? '남성' : 
+                       record.gender === 'F' ? '여성' : 
+                       record.gender.toUpperCase() === 'M' ? '남성' :
+                       record.gender.toUpperCase() === 'F' ? '여성' : 'N/A';
+    }
+    
+    // 뇌졸중 유형 한글 표시
+    const strokeTypeMap = {
+        'ischemic_reperfusion': '허혈성 재관류',
+        'ischemic_no_reperfusion': '허혈성 비재관류',
+        'hemorrhagic': '출혈성'
     };
+    const strokeTypeDisplay = strokeTypeMap[record.stroke_type] || record.stroke_type;
+    
+    // 산화 스트레스 위험도 한글 표시
+    const riskMap = {
+        'low': '낮음',
+        'medium': '보통',
+        'high': '높음'
+    };
+    const riskDisplay = riskMap[record.oxidative_stress_risk] || record.oxidative_stress_risk;
+    
+    // 재관류 치료 정보
+    let reperfusionInfo = '없음';
+    if (record.stroke_info?.reperfusion_treatment || record.reperfusion_treatment) {
+        const timeDisplay = record.stroke_info?.reperfusion_time_display || 
+                          record.reperfusion_time_display ||
+                          (record.stroke_info?.reperfusion_time ? `${record.stroke_info.reperfusion_time}시간` : '') ||
+                          (record.reperfusion_time ? `${record.reperfusion_time}시간` : '');
+        reperfusionInfo = timeDisplay || '있음';
+    }
+    
+    // ===== 모니터링 일정 올바른 표시 =====
+    let monitoringDisplay = '24시간 후 재평가';
+    if (record.monitoring_schedule_display) {
+        monitoringDisplay = record.monitoring_schedule_display;
+    } else if (record.monitoring_schedule) {
+        if (typeof record.monitoring_schedule === 'string') {
+            monitoringDisplay = record.monitoring_schedule;
+        } else if (record.monitoring_schedule.text) {
+            monitoringDisplay = record.monitoring_schedule.text;
+        }
+    }
+    
+    return `
+【SOD2 평가 결과】
+• 기록 시간: ${recordDate}
+• 환자 정보: ${ageDisplay}, ${genderDisplay}
+• 뇌졸중 유형: ${strokeTypeDisplay}
+• NIHSS 점수: ${record.nihss_score || 'N/A'}
+• 재관류 치료: ${reperfusionInfo}
+• 뇌졸중 후 경과: ${record.hours_after_stroke ? `${record.hours_after_stroke}시간` : 'N/A'}
+
+【평가 결과】
+• SOD2 수준: ${(record.current_sod2_level * 100).toFixed(1)}%
+• 산화 스트레스 위험도: ${riskDisplay}
+• 운동 시작 가능: ${record.exercise_can_start ? '가능' : '불가능'}
+• 권장 운동 강도: ${record.exercise_intensity}%
+
+【임상 권장사항】
+${record.clinical_recommendations && record.clinical_recommendations.length > 0 
+    ? record.clinical_recommendations.map(rec => `• ${rec}`).join('\n') 
+    : '• 정기적인 경과 관찰'}
+
+【모니터링 일정】
+${monitoringDisplay}
+
+${record.notes ? `\n【메모】\n${record.notes}` : ''}
+    `.trim();
+};
+
+// =============================================================================
+// 3. 뇌졸중 유형 표시 함수
+// =============================================================================
+
+const getStrokeTypeDisplay = (strokeType) => {
+    const typeMap = {
+        'ischemic_reperfusion': '허혈성 재관류',
+        'ischemic_no_reperfusion': '허혈성 비재관류',
+        'hemorrhagic': '출혈성'
+    };
+    return typeMap[strokeType] || strokeType;
+};
     // --- [추가] SOD2 자동 비고 생성 함수 ---
     const generateSod2Note = (newRecord, existingRecords) => {
         if (existingRecords.length === 0) {
@@ -1415,7 +1498,7 @@ const LabResultsView = ({ selectedPatient, onBackToPatientList, onSelectedPatien
                 )}
             </div>
 
-            {/* NiftiUploadManager 추가 */}
+            {/* 유정우넌할수있어 추가 */}
             <NiftiUploadManager patient={selectedPatient} />
 
             <PatientDicomManager

@@ -203,18 +203,15 @@ const aiService = {
 
     /**
      * 유전자 CSV 파일을 백엔드(FastAPI)로 업로드하여 분석을 요청합니다.
-     * CSV 파일은 'patient_id' 컬럼(UUID 형식)을 포함해야 합니다.
-     * 엔드포인트: http://34.64.188.9:8002/predict_csv
-     * @param {File} file - 업로드할 CSV File 객체. 반드시 'patient_id' 컬럼을 포함해야 함.
+     * 이제 patient_uuid는 FormData에 별도의 필드로 포함되어 백엔드로 전송됩니다.
+     * 백엔드에서는 이 patient_uuid를 사용하여 데이터를 할당합니다.
+     * @param {FormData} formData - 'file'과 'patient_uuid'를 포함하는 FormData 객체.
      * @returns {Promise<object>} 분석 결과 데이터를 포함하는 Promise
      */
-    uploadGeneCSV: async (file) => {
-        const formData = new FormData();
-        formData.append('file', file); // FastAPI의 endpoint 파라미터 이름이 'file'이므로 여기에 맞춤.
-
+    uploadGeneCSV: async (formData) => { // FormData 객체를 인자로 받음
         try {
-            // ★★★ 다른 모델과 다르게 fastApiGeneClient 사용 ★★★
-            const response = await fastApiGeneClient.post('predict_csv', formData, {
+            // FastAPI의 /predict_csv 엔드포인트로 FormData 전송
+            const response = await axios.post(`${FASTAPI_GENE_API_BASE_URL}/predict_csv`, formData, {
                 headers: {
                     'Content-Type': 'multipart/form-data', // 파일 업로드 시 필수
                 },
@@ -222,6 +219,47 @@ const aiService = {
             return response.data;
         } catch (error) {
             console.error('유전자 CSV 업로드 및 분석 오류:', error.response?.data || error.message);
+            throw error;
+        }
+    },
+
+    /**
+     * 특정 환자의 유전자 분석 과거 기록을 불러옵니다.
+     * @param {string} patientUuid - 기록을 조회할 환자의 UUID.
+     * @returns {Promise<Array<object>>} 유전자 분석 기록 배열을 포함하는 Promise
+     */
+    getGeneHistory: async (patientUuid) => {
+        try {
+            // FastAPI의 새로운 /gene_results/{patient_uuid} 엔드포인트 호출
+            const response = await axios.get(`${FASTAPI_GENE_API_BASE_URL}/gene_results/${patientUuid}`);
+            return response.data;
+        } catch (error) {
+            console.error('유전자 분석 기록 불러오기 오류:', error.response?.data || error.message);
+            throw error;
+        }
+    },
+    
+    /**
+     * 특정 환자의 최신 유전자 분석 결과를 불러옵니다.
+     * @param {string} patientUuid - 최신 결과를 조회할 환자의 UUID.
+     * @returns {Promise<object | null>} 최신 유전자 분석 결과 객체 또는 결과가 없으면 null 반환
+     */
+    fetchLatestGeneAssessment: async (patientUuid) => {
+        try {
+            // 과거 기록 엔드포인트를 활용하여 최신 결과를 가져옵니다.
+            // 백엔드에서 정렬된 상태로 배열이 오면 마지막 요소가 최신입니다.
+            // 또는, 백엔드에 `/gene_results/{patient_uuid}/latest`와 같은 전용 엔드포인트를 만드는 것이 더 효율적입니다.
+            const response = await axios.get(`${FASTAPI_GENE_API_BASE_URL}/gene_results/${patientUuid}`);
+            const data = response.data;
+            if (data && data.length > 0) {
+                // created_at으로 내림차순 정렬되어 있다고 가정하거나,
+                // 프론트에서 다시 정렬하여 가장 최신(마지막) 결과를 가져옵니다.
+                // 백엔드 get_gene_results는 created_at 오름차순으로 정렬되므로, 마지막 요소가 최신입니다.
+                return data[data.length - 1]; 
+            }
+            return null;
+        } catch (error) {
+            console.error('최신 유전자 분석 결과 조회 실패:', error.response?.data || error.message);
             throw error;
         }
     },

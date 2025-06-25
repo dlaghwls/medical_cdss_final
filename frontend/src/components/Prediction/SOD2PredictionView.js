@@ -187,7 +187,7 @@ const SOD2PredictionView = ({ selectedPatient, onBackToPatientList, onBackToModu
         return `${index === 0 ? 'M' : 'L'} ${x} ${y}`;
       }).join(' ');
     };
-    
+
     return (
       <div style={{ backgroundColor: '#fff', padding: '25px', borderRadius: '12px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', marginBottom: '20px' }}>
         <h4 style={{ margin: '0 0 20px 0', color: '#333' }}>{title}</h4>
@@ -202,6 +202,7 @@ const SOD2PredictionView = ({ selectedPatient, onBackToPatientList, onBackToModu
             <svg width={chartWidth} height={chartHeight + 40} style={{ overflow: 'visible' }}>
               {/* 그리드 라인 */}
               <defs>
+                
                 <pattern id="grid" width="40" height="30" patternUnits="userSpaceOnUse">
                   <path d="M 40 0 L 0 0 0 30" fill="none" stroke="#f0f0f0" strokeWidth="1"/>
                 </pattern>
