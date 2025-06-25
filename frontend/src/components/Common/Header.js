@@ -59,7 +59,7 @@ const Header = ({ user }) => {
   
   const timeStyle = {
     fontSize: '1rem',
-    fontFamily: '"Courier New", Courier, monospace', // 고정폭 글꼴로 숫자 깜빡임 방지
+    fontFamily: "'JetBrains Mono', monospace", // 고정폭 글꼴로 숫자 깜빡임 방지
     letterSpacing: '0.5px'
   };
 

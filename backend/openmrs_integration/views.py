@@ -220,14 +220,26 @@ def create_patient_in_openmrs_and_django(request):
             logger.error(f"create_patient_in_openmrs_and_django: Missing required fields. Data: {data}")
             return Response({'error': 'Missing required fields (givenName, familyName, gender, birthdate, identifier)'}, status=status.HTTP_400_BAD_REQUEST)
 
+        person_payload = {
+            "names": [{"givenName": given_name, "familyName": family_name, "preferred": True}],
+            "gender": gender,
+            "birthdate": birthdate_str,
+            "attributes": []
+        }
+
+        # 2. 주소 정보가 있을 때만 addresses 필드를 추가합니다.
+        if address1 or city_village:
+            person_payload["addresses"] = [{"address1": address1, "cityVillage": city_village, "preferred": True}]
+
+        # 3. 전화번호 정보가 있을 때만 attributes에 추가합니다.
+        if phone_number_str and phone_attr_type_uuid_from_settings:
+            person_payload["attributes"].append({
+                "attributeType": phone_attr_type_uuid_from_settings, "value": phone_number_str
+            })
+
+        # 4. 최종 페이로드를 조립합니다.
         openmrs_payload = {
-            "person": {
-                "names": [{"givenName": given_name, "familyName": family_name, "preferred": True}],
-                "gender": gender,
-                "birthdate": birthdate_str,
-                "addresses": [{"address1": address1, "cityVillage": city_village, "preferred": True}] if address1 or city_village else [],
-                "attributes": []
-            },
+            "person": person_payload,
             "identifiers": [{
                 "identifier": identifier_value,
                 "identifierType": identifier_type_uuid_from_settings,
@@ -235,11 +247,6 @@ def create_patient_in_openmrs_and_django(request):
                 "preferred": True
             }]
         }
-
-        if phone_number_str and phone_attr_type_uuid_from_settings:
-            openmrs_payload["person"]["attributes"].append({
-                "attributeType": phone_attr_type_uuid_from_settings, "value": phone_number_str
-            })
         
         api_url = f"{OPENMRS_API_BASE_URL}/patient"
         logger.info(f"Posting to OpenMRS API: {api_url} with payload: {json.dumps(openmrs_payload, indent=2, ensure_ascii=False)}")

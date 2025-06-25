@@ -5,18 +5,75 @@ import { fetchLocalPatients, fetchAndSyncPatients } from '../../services/djangoA
 import { registerPatient } from '../../services/djangoApiService'; // registerPatient는 Form에서만 사용
 import { Modal } from './Modal'; // Modal 컴포넌트 임포트
 
+// 생년월일로 나이를 계산하는 함수
+const calculateAge = (birthdateString) => {
+    if (!birthdateString) return null;
+    const birthDate = new Date(birthdateString);
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const m = today.getMonth() - birthDate.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+        age--;
+    }
+    return age;
+};
+
+// 성별 코드를 텍스트로 변환하는 함수
+const formatGender = (genderCode) => {
+    if (!genderCode) return '미상';
+    if (genderCode.toUpperCase() === 'M') return '남';
+    if (genderCode.toUpperCase() === 'F') return '여';
+    return '기타';
+};
+
 // --- 1. 선택된 환자 정보 컴포넌트 (기존 SinglePatientTester 대체) ---
 const SelectedPatientInfo = ({ selectedPatient }) => {
+
+    const patientInfo = selectedPatient ? {
+        // [수정] 헬퍼 함수 대신 로직을 직접, 더 단순하게 작성합니다.
+        displayName: (selectedPatient.display && selectedPatient.display.includes(' - '))
+            ? selectedPatient.display.split(' - ')[1].trim()
+            : selectedPatient.display, // ' - '가 없으면 그냥 원래 값을 사용
+
+        age: calculateAge(selectedPatient.person?.birthdate),
+        gender: formatGender(selectedPatient.person?.gender),
+        birthdate: selectedPatient.person?.birthdate?.substring(0, 10) || '정보 없음',
+        identifier: selectedPatient.identifier ||
+                    (selectedPatient.display?.includes(' - ') ? selectedPatient.display.split(' - ')[0] : 'ID 없음')
+    } : null;
+
+    const infoRowStyle = {
+        display: 'flex',
+        alignItems: 'center',
+        marginBottom: '4px'
+    };
+    const iconStyle = { marginRight: '8px' };
+    const labelStyle = { color: '#666', width: '65px' };
+
     return (
-        <div style={{ border: '1px dashed #007bff', padding: '10px', marginBottom: '15px', fontSize: '0.8em' }}>
-            <h5>선택된 환자 정보</h5>
-            {selectedPatient ? (
-                <div>
-                    <p><strong>이름:</strong> {selectedPatient.display || '정보 없음'}</p>
-                    <p><strong>UUID:</strong> {selectedPatient.uuid || '정보 없음'}</p>
+        <div style={{ border: '1px solid #007bff', padding: '15px', marginBottom: '15px', borderRadius: '5px', backgroundColor: '#f8f9fa' }}>
+            <h5 style={{ marginTop: 0, marginBottom: '12px', paddingBottom: '8px', borderBottom: '1px solid #dee2e6' }}>
+                선택한 환자 정보
+            </h5>
+            {patientInfo ? (
+                <div style={{ fontSize: '0.9em' }}>
+                    <div style={{ ...infoRowStyle, marginBottom: '8px' }}>
+                        <span style={{ fontWeight: 'bold', fontSize: '1.05em' }}>
+                            {patientInfo.displayName}
+                            {patientInfo.age !== null && ` (${patientInfo.age}세 / ${patientInfo.gender})`}
+                        </span>
+                    </div>
+                    <div style={infoRowStyle}>
+                        <span style={labelStyle}>생년월일:</span>
+                        <span>{patientInfo.birthdate}</span>
+                    </div>
+                    <div style={infoRowStyle}>
+                        <span style={labelStyle}>환자번호:</span>
+                        <span>{patientInfo.identifier}</span>
+                    </div>
                 </div>
             ) : (
-                <p style={{ color: '#6c757d', fontStyle: 'italic' }}>환자 목록에서 환자를 선택해주세요.</p>
+                <p style={{ color: '#6c757d', fontStyle: 'italic', margin: 0, fontSize: '14px' }}>환자 목록에서 환자를 선택해주세요.</p>
             )}
         </div>
     );
@@ -161,7 +218,7 @@ const OpenMRSPatientList = ({ refreshTrigger, onPatientSelect }) => {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '10px' }}>
                 <form onSubmit={handleSearch} style={{ display: 'flex' }}>
                     <input type="text" placeholder="환자 이름, ID 검색..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} style={{ padding: '6px', width: '70%', border: '1px solid #ccc', borderRadius: '3px', fontSize: '0.85rem' }}/>
-                    <button type="submit" disabled={loading} style={{ padding: '6px 10px', cursor: loading ? 'not-allowed' : 'pointer', backgroundColor: loading ? '#ccc' : '#007bff', color: 'white', border: 'none', borderRadius: '3px', fontSize: '0.85rem', marginLeft: '5px' }}>
+                    <button type="submit" disabled={loading} style={{ padding: '6px 10px', cursor: loading ? 'not-allowed' : 'pointer', backgroundColor: loading ? '#ccc' : '#007bff', color: 'white', border: 'none', borderRadius: '3px', fontSize: '0.85rem', marginLeft: '17px' }}>
                         검색
                     </button>
                 </form>

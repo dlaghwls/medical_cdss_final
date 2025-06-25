@@ -1,0 +1,118 @@
+.signupContainer {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background-color: #2C2C2E;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+.signupHeader {
+  font-size: 2em;
+  color: #ffffff;
+  margin-bottom: 30px;
+}
+
+.signupForm {
+  background-color: #ffffff;
+  padding: 40px;
+  border-radius: 10px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  width: 500px;
+  max-width: 95%;
+  text-align: left;
+}
+
+.signupInputGroup {
+  margin-bottom: 20px;
+}
+
+.signupInputGroup label {
+  display: block;
+  margin-bottom: 8px;
+  color: #555;
+  font-weight: 500;
+}
+
+.signupInputField {
+  width: 100%;
+  padding: 12px 15px;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  font-size: 1em;
+  box-sizing: border-box;
+}
+
+.signupInputField:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25);
+}
+
+.signupUuidHint {
+  font-size: 0.85em;
+  color: #6c757d;
+  margin-top: 5px;
+}
+
+.signupSubmitButton {
+  width: 100%;
+  padding: 15px;
+  background-color: #28a745;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  font-size: 1.1em;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+  margin-top: 20px;
+}
+
+.signupSubmitButton:hover {
+  background-color: #218838;
+}
+
+.signupSubmitButton:disabled {
+  background-color: #cccccc;
+  cursor: not-allowed;
+}
+
+.signupErrorMessage {
+  color: #dc3545;
+  margin-top: 15px;
+  font-size: 0.9em;
+  text-align: center;
+}
+
+.signupLoginLink {
+  margin-top: 30px;
+  font-size: 0.95em;
+}
+
+.signupLoginLink a {
+  color: #ffffff;;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.signupLoginLink a:hover {
+  text-decoration: underline;
+}
+
+.signupSlideIn {
+  animation: slideIn 0.5s ease-in-out;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

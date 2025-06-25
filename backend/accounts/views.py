@@ -1,10 +1,12 @@
-# backend/accounts/views.py
+# /backend/accounts/views.py (최종 수정 완료)
+
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework import status
-from django.contrib.auth import get_user_model # AUTH_USER_MODEL을 가져오는 방법
-from .serializers import UserSerializer # User 모델에 대한 시리얼라이저 필요
+from django.contrib.auth import get_user_model
+from django.http import JsonResponse
+from django.middleware.csrf import get_token
 
 from .serializers import UserSerializer, MyTokenObtainPairSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView

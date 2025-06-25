@@ -1,3 +1,5 @@
+// /home/shared/medical_cdss/frontend/src/services/aiService.js
+
 // 기존 Django API용 apiClient를 djangoApiClient로 임포트합니다.
 import { apiClient as djangoApiClient } from './djangoApiService'; 
 import axios from 'axios'; // axios 직접 임포트
@@ -98,66 +100,103 @@ const aiService = {
 
     /**
      * SOD2 상태 평가를 위한 데이터를 백엔드로 전송합니다.
-     * 엔드포인트: ml/sod2/assess/
+     * 엔드포인트: ml/sod2/assess/ (프로젝트 지식에서 확인된 경로)
      * @param {object} assessmentData - SOD2 평가에 필요한 데이터
      * @returns {Promise<object>} 평가 결과 데이터를 포함하는 Promise
      */
     assessSOD2Status: async (assessmentData) => {
         try {
+            console.log('SOD2 평가 요청 데이터:', assessmentData);
             const response = await djangoApiClient.post('ml/sod2/assess/', assessmentData);
+            console.log('SOD2 평가 응답:', response.data);
             return response.data;
         } catch (error) {
-            console.error('SOD2 평가 API 오류:', error);
+            console.error('SOD2 평가 API 오류:', error.response?.data || error.message);
             throw error;
         }
     },
 
     /**
      * 특정 환자의 SOD2 평가 이력을 조회합니다.
-     * 엔드포인트: ml/patients/{patientUuid}/sod2/assessments/
+     * 엔드포인트: ml/patient/{patientUuid}/sod2/assessments/
      * @param {string} patientUuid - 환자 UUID
      * @returns {Promise<Array>} SOD2 평가 이력 배열
      */
     fetchSOD2Assessments: async (patientUuid) => {
         try {
+            console.log('SOD2 평가 이력 조회:', patientUuid);
             const response = await djangoApiClient.get(`ml/patient/${patientUuid}/sod2/assessments/`);
-            return response.data.assessments || []; // 백엔드 응답 구조에 따라 'assessments' 키가 있을 수 있음
+            console.log('SOD2 평가 이력 응답:', response.data);
+            
+            // 백엔드 응답 구조에 따라 적절히 반환
+            if (Array.isArray(response.data)) {
+                return response.data;
+            } else if (response.data.assessments && Array.isArray(response.data.assessments)) {
+                return response.data.assessments;
+            } else if (response.data.results && Array.isArray(response.data.results)) {
+                return response.data.results;
+            } else {
+                return [];
+            }
         } catch (error) {
-            console.error('SOD2 평가 이력 조회 API 오류:', error);
+            console.error('SOD2 평가 이력 조회 API 오류:', error.response?.data || error.message);
             throw error;
         }
     },
 
     /**
      * 특정 환자의 최신 SOD2 평가 결과를 조회합니다.
-     * 엔드포인트: ml/patients/{patientUuid}/sod2/latest/
+     * 엔드포인트: ml/patient/{patientUuid}/sod2/latest/
      * @param {string} patientUuid - 환자 UUID
      * @returns {Promise<object | null>} 최신 SOD2 평가 결과 또는 없을 경우 null
      */
     fetchLatestSOD2Assessment: async (patientUuid) => {
         try {
+            console.log('최신 SOD2 평가 조회:', patientUuid);
             const response = await djangoApiClient.get(`ml/patient/${patientUuid}/sod2/latest/`);
+            console.log('최신 SOD2 평가 응답:', response.data);
             return response.data;
         } catch (error) {
             if (error.response?.status === 404) {
+                console.log('SOD2 평가 결과 없음');
                 return null; // 평가 결과 없음
             }
-            console.error('최신 SOD2 평가 조회 API 오류:', error);
+            console.error('최신 SOD2 평가 조회 API 오류:', error.response?.data || error.message);
             throw error;
         }
     },
 
     /**
-     * @desc 뇌졸중 관련 정보를 Django 백엔드에 저장합니다. (djangoApiService에서 이동)
+     * 뇌졸중 관련 정보를 Django 백엔드에 저장합니다.
+     * 엔드포인트: lab-results/stroke-info/ (기존 경로 유지)
      * @param {object} data - 뇌졸중 정보 데이터
      * @returns {Promise<object>}
      */
     registerStrokeInfo: async (data) => {
         try {
+            console.log('뇌졸중 정보 등록 요청:', data);
             const response = await djangoApiClient.post('lab-results/stroke-info/', data);
+            console.log('뇌졸중 정보 등록 응답:', response.data);
             return response.data;
         } catch (error) {
-            console.error("Error registering stroke info:", error.response?.data || error.message);
+            console.error("뇌졸중 정보 등록 오류:", error.response?.data || error.message);
+            throw error;
+        }
+    },
+
+    /**
+     * 뇌졸중 정보 이력을 조회합니다.
+     * @param {string} patientUuid - 환자 UUID
+     * @returns {Promise<Array>} 뇌졸중 정보 이력 배열
+     */
+    fetchStrokeInfoHistory: async (patientUuid) => {
+        try {
+            console.log('뇌졸중 정보 이력 조회:', patientUuid);
+            const response = await djangoApiClient.get(`lab-results/stroke-info/?patient_uuid=${patientUuid}`);
+            console.log('뇌졸중 정보 이력 응답:', response.data);
+            return response.data;
+        } catch (error) {
+            console.error('뇌졸중 정보 이력 조회 오류:', error.response?.data || error.message);
             throw error;
         }
     },

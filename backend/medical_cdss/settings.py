@@ -168,7 +168,7 @@ SIMPLE_JWT = {
     
     # 커스텀 토큰 발급 Serializer 설정 (accounts.serializers.MyTokenObtainPairSerializer)
     # 이 시리얼라이저를 accounts/serializers.py에 직접 정의해야 합니다.
-    'TOKEN_OBTAIN_PAIR_SERIALIZER': 'accounts.serializers.MyTokenObtainPairSerializer',
+    'TOKEN_OBTAIN_SERIALIZER': 'accounts.serializers.MyTokenObtainPairSerializer', 
     'TOKEN_REFRESH_SERIALIZER': 'rest_framework_simplejwt.serializers.TokenRefreshSerializer',
     'TOKEN_VERIFY_SERIALIZER': 'rest_framework_simplejwt.serializers.TokenVerifySerializer',
     'TOKEN_BLACKLIST_SERIALIZER': 'rest_framework_simplejwt.serializers.TokenBlacklistSerializer',

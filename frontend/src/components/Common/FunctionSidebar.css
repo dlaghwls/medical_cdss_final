@@ -1,0 +1,106 @@
+/* 변수를 사용해 색상 관리를 용이하게 합니다 */
+:root {
+  --primary-color: #0d6efd; /* 주요 색상 (기존 부트스트랩 블루) */
+  --sidebar-bg: #f8f9fa; /* 사이드바 배경색 */
+  --text-color: #6c757d; /* 기본 텍스트 색상 */
+  --text-secondary-color: #495057; /* 보조 텍스트 색상 */
+  --border-color: #dee2e6; /* 구분선 색상 */
+  --hover-bg: #e9ecef; /* 호버 시 배경색 */
+  --active-bg: #0d6efd; /* 활성 메뉴 배경색 */
+  --active-text-color: #ffffff; /* 활성 메뉴 텍스트 색상 */
+}
+
+/* 사이드바 전체 컨테이너 */
+.sidebar-container {
+  background-color: var(--sidebar-bg);
+  padding: 20px 15px;
+  border-right: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  height: 100%; /* 부모 요소에 맞춰 높이 채우기 */
+}
+
+/* 사용자 프로필 섹션 */
+.profile-section {
+  text-align: center;
+  margin-bottom: 20px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.profile-section h4 {
+  margin-bottom: 5px;
+  font-size: 1.1em;
+  font-weight: 600;
+  color: var(--text-color);
+}
+
+.profile-section p {
+  margin: 0;
+  font-size: 0.9em;
+  color: var(--text-secondary-color);
+}
+
+/* 메인 버튼 (환자 요약) */
+.main-action-button {
+  width: 100%;
+  padding: 12px;
+  margin-bottom: 20px;
+  background-color: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 1em;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s ease-in-out;
+}
+
+.main-action-button:hover {
+  background-color: #0b5ed7; /* 호버 시 조금 더 어둡게 */
+}
+
+/* 메뉴 그룹 (공통 기능, AI 기능 등) */
+.menu-group {
+  margin-bottom: 15px;
+}
+
+.menu-group-title {
+  font-size: 1.0em;
+  font-weight: 700;
+  color: var(--text-secondary-color);
+  text-transform: uppercase;
+  padding: 0 12px;
+  margin-bottom: 8px;
+}
+
+/* 메뉴 리스트 */
+.menu-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+/* 개별 메뉴 아이템 */
+.menu-item {
+  display: flex;
+  align-items: center;
+  padding: 12px 15px;
+  cursor: pointer;
+  border-radius: 6px;
+  margin-bottom: 5px;
+  transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out;
+  font-size: 0.95em;
+  color: var(--text-color);
+}
+
+.menu-item:hover {
+  background-color: var(--hover-bg);
+}
+
+/* 활성화된 메뉴 아이템 */
+.menu-item.active {
+  background-color: var(--active-bg);
+  color: var(--active-text-color);
+  font-weight: 600;
+}

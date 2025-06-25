@@ -51,33 +51,79 @@ class SOD2Service:
             return {'error': str(e)}
     
     def _extract_patient_info(self, patient_data: Dict) -> Dict:
-        """환자 정보 추출 및 정리"""
-        # 기본값 설정
-        age = patient_data.get('age', 65)
-        gender = patient_data.get('gender', 'M')
-        stroke_type = patient_data.get('stroke_type', 'ischemic_reperfusion')
-        stroke_date = patient_data.get('stroke_date')
-        nihss_score = patient_data.get('nihss_score', 8)
-        reperfusion_treatment = patient_data.get('reperfusion_treatment', True)
-        reperfusion_time = patient_data.get('reperfusion_time', 2.5)
+        """환자 정보 추출 및 정리 - 프론트엔드 데이터 구조에 맞게 수정"""
         
-        # 뇌졸중 후 경과 시간 계산
+        # 프론트엔드에서 보내는 데이터 구조 확인
+        print(f"[DEBUG] 받은 patient_data: {patient_data}")
+        
+        # stroke_info 객체에서 데이터 추출
+        stroke_info = patient_data.get('stroke_info', {})
+        
+        # 실제 입력값 사용, 기본값은 최후의 수단으로만
+        age = patient_data.get('age')
+        if age is None:
+            print("[WARNING] 나이 정보가 없습니다. 기본값 65 사용")
+            age = 65
+        
+        gender = patient_data.get('gender')
+        if gender is None:
+            print("[WARNING] 성별 정보가 없습니다. 기본값 M 사용")
+            gender = 'M'
+        
+        # stroke_info 객체에서 뇌졸중 정보 추출
+        stroke_type = stroke_info.get('stroke_type')
+        if stroke_type is None:
+            print("[WARNING] 뇌졸중 유형 정보가 없습니다. 기본값 ischemic_reperfusion 사용")
+            stroke_type = 'ischemic_reperfusion'
+        
+        nihss_score = stroke_info.get('nihss_score')
+        if nihss_score is None:
+            print("[WARNING] NIHSS 점수 정보가 없습니다. 기본값 8 사용")
+            nihss_score = 8
+        
+        reperfusion_treatment = stroke_info.get('reperfusion_treatment', False)
+        reperfusion_time = stroke_info.get('reperfusion_time')
+        
+        if not reperfusion_treatment:
+            reperfusion_time = None
+            print("[INFO] 재관류 치료를 받지 않음. reperfusion_time을 None으로 설정")
+        elif reperfusion_time is None:
+            print("[WARNING] 재관류 치료를 받았지만 시간 정보가 없습니다. 기본값 2.5 사용")
+            reperfusion_time = 2.5
+        
+        hours_after_stroke = stroke_info.get('hours_after_stroke')
+        if hours_after_stroke is None:
+            print("[WARNING] 경과 시간 정보가 없습니다. 기본값 96 사용")
+            hours_after_stroke = 96
+        
+        # stroke_date 처리
+        stroke_date = stroke_info.get('stroke_date')
         if stroke_date:
-            if isinstance(stroke_date, str):
-                stroke_date = datetime.strptime(stroke_date, '%Y-%m-%d').date()
-            hours_after_stroke = (date.today() - stroke_date).days * 24
-        else:
-            hours_after_stroke = patient_data.get('hours_after_stroke', 96)
+            try:
+                if isinstance(stroke_date, str):
+                    stroke_date = datetime.strptime(stroke_date, '%Y-%m-%d').date()
+                # stroke_date로부터 hours_after_stroke 재계산 (더 정확함)
+                calculated_hours = (date.today() - stroke_date).days * 24
+                if calculated_hours > 0:  # 유효한 계산값인 경우
+                    hours_after_stroke = calculated_hours
+                    print(f"[INFO] 뇌졸중 날짜로부터 경과시간 재계산: {hours_after_stroke}시간")
+            except (ValueError, TypeError) as e:
+                print(f"[ERROR] 뇌졸중 날짜 파싱 오류: {e}")
         
-        return {
-            'age': age,
-            'gender': gender,
-            'stroke_type': stroke_type,
-            'nihss_score': nihss_score,
-            'reperfusion_treatment': reperfusion_treatment,
-            'reperfusion_time': reperfusion_time,
-            'hours_after_stroke': hours_after_stroke
+        # 추출된 정보 로깅
+        extracted_info = {
+            'age': int(age),
+            'gender': str(gender),
+            'stroke_type': str(stroke_type),
+            'nihss_score': int(nihss_score),
+            'reperfusion_treatment': bool(reperfusion_treatment),
+            'reperfusion_time': float(reperfusion_time) if reperfusion_time is not None else None,
+            'hours_after_stroke': float(hours_after_stroke)
         }
+        
+        print(f"[DEBUG] 추출된 환자 정보: {extracted_info}")
+        
+        return extracted_info
     
     def _generate_sod2_prediction(self, patient_info: Dict) -> Dict:
         """SOD2 시간별 예측 데이터 생성"""
@@ -132,7 +178,11 @@ class SOD2Service:
         age = patient_info['age']
         stroke_type = patient_info['stroke_type']
         nihss_score = patient_info['nihss_score']
-        reperfusion_time = patient_info.get('reperfusion_time', 3.0)
+        reperfusion_time = patient_info.get('reperfusion_time', 3.0)  # 기본값 3.0
+        
+        # reperfusion_time이 None인 경우 처리
+        if reperfusion_time is None:
+            reperfusion_time = 3.0  # 기본값 설정
         
         # 나이 계수 (젊을수록 회복 빠름)
         age_factor = 1.1 if age < 50 else 1.0 if age <= 70 else 0.9
@@ -148,8 +198,10 @@ class SOD2Service:
         # NIHSS 점수 계수 (중증도)
         nihss_factor = 0.85 if nihss_score > 15 else 1.1 if nihss_score < 5 else 1.0
         
-        # 재관류 시간 계수
-        reperfusion_factor = 1.1 if reperfusion_time <= 3 else 1.05 if reperfusion_time <= 4.5 else 0.95
+        # 재관류 시간 계수 - reperfusion_treatment를 확인하여 적용
+        reperfusion_factor = 1.0  # 기본값
+        if patient_info.get('reperfusion_treatment', False):
+            reperfusion_factor = 1.1 if reperfusion_time <= 3 else 1.05 if reperfusion_time <= 4.5 else 0.95
         
         return age_factor * stroke_factor * nihss_factor * reperfusion_factor
     

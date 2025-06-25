@@ -24,10 +24,12 @@ const DashboardPage = () => {
 
     const handlePatientSelect = useCallback((patient) => {
         setSelectedPatient(patient);
-        if (currentViewId !== 'lab_results' && currentViewId !== 'doctor_tasks' && currentViewId !== 'vital_signs') {
-            setCurrentViewId('lab_results');
-        }
-    }, [currentViewId]); // 종속성 배열에 currentViewId 추가
+    //     setCurrentViewId('main_dashboard');
+    //     if (currentViewId !== 'lab_results' && currentViewId !== 'doctor_tasks' && currentViewId !== 'vital_signs') {
+    //         setCurrentViewId('lab_results');
+    //     }
+    // }, [currentViewId]); // 종속성 배열에 currentViewId 추가
+    }, []);
 
     const handlePatientRegistered = useCallback(() => {
         console.log("DashboardPage: Patient registered, triggering refresh.");
@@ -49,20 +51,7 @@ const DashboardPage = () => {
 
             <div style={{ display: 'flex', flexGrow: 1, overflow: 'hidden' }}>
 
-                {/* 왼쪽: 기능 메뉴 사이드바 */}
-                <FunctionSidebar
-                    user={user}
-                    onMenuClick={handleMenuClick} // 기능 메뉴 클릭 핸들러 전달
-                    style={{
-                        width: '200px',
-                        flexShrink: 0,
-                        overflowY: 'auto',
-                        borderRight: '1px solid #ddd',
-                        backgroundColor: '#f8f9fa'
-                    }}
-                />
-
-                {/* 중앙: 환자 관련 사이드바 */}
+                {/* 환자 관련 사이드바 */}
                 <PatientSidebar
                     onPatientSelect={handlePatientSelect}           // 환자 선택 핸들러 전달
                     onPatientRegistered={handlePatientRegistered} // 환자 등록 핸들러 전달
@@ -74,6 +63,19 @@ const DashboardPage = () => {
                         overflowY: 'auto',
                         borderRight: '1px solid #ddd',
                         backgroundColor: '#ffffff'
+                    }}
+                />
+
+                {/* 기능 메뉴 사이드바 */}
+                <FunctionSidebar
+                    user={user}
+                    onMenuClick={handleMenuClick} // 기능 메뉴 클릭 핸들러 전달
+                    style={{
+                        width: '230px',
+                        flexShrink: 0,
+                        overflowY: 'auto',
+                        borderRight: '1px solid #ddd',
+                        backgroundColor: '#f8f9fa'
                     }}
                 />
 

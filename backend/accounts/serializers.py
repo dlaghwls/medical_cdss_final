@@ -74,21 +74,25 @@ class UserSerializer(serializers.ModelSerializer):
 class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
     @classmethod
     def get_token(cls, user):
-        logger.warning(f"--- MyTokenObtainPairSerializer.get_token 호출됨 ---")
-        logger.warning(f"User object received: ID={user.pk}, Employee ID={user.employee_id}, Name={user.name}, Department={user.department}, Role={user.role}, OpenMRS UUID: {user.openmrs_uuid}")
+        # 1. super()를 통해 기본 토큰 객체를 받아옵니다.
+        token = super().get_token(user)
 
-        # super().get_token(user)는 기본적으로 RefreshToken을 반환합니다.
-        refresh = super().get_token(user)
-        access = refresh.access_token # RefreshToken에서 AccessToken을 얻습니다.
+        # 2. '복사본'을 만들지 않고, 원본 토큰 객체에 직접 정보를 추가합니다.
+        # 이 토큰 객체는 Access token과 Refresh token의 정보를 모두 담고 있습니다.
+        token['employee_id'] = user.employee_id
+        token['name'] = user.name
+        token['display'] = user.name
+        token['role'] = user.role
+        
+        # OpenMRS UUID가 있다면 그것도 추가합니다.
+        if hasattr(user, 'openmrs_uuid') and user.openmrs_uuid:
+            token['uuid'] = str(user.openmrs_uuid)
+        else:
+            token['uuid'] = None
+        
+        logger.warning(f"--- MyTokenObtainPairSerializer.get_token 호출됨 (수정 후) ---")
+        logger.warning(f"User object: {user.name}, Role: {user.role}")
+        logger.warning(f"Final token payload (before encoding): {token}")
 
-        # 이제 access 토큰에 커스텀 클레임을 추가합니다.
-        access['uuid'] = str(user.openmrs_uuid) if user.openmrs_uuid else None
-        access['display'] = user.name
-        access['name'] = user.name
-        access['role'] = user.role
-
-        logger.warning(f"--- Access Token Payload에 정보 추가 시도 완료 ---")
-        logger.warning(f"Final Access Token Payload: {access.payload}") # Access 토큰 페이로드 확인
-        logger.warning(f"--------------------------------------------")
-
-        return refresh
+        # 3. 정보가 추가된 원본 토큰을 반환합니다.
+        return token

@@ -1,0 +1,148 @@
+.loginPageContainer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background-color: #2C2C2E; /* 더 진한 회색 */
+  position: relative;
+  overflow: hidden;
+}
+
+.loginPageContainer::before,
+.loginPageContainer::after {
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(0, 102, 204, 0.25); 
+  animation: moveCircles 15s infinite ease-in-out;
+  z-index: 0;
+}
+
+.loginPageContainer::before {
+  width: 120px;
+  height: 120px;
+  top: 20%;
+  left: 50%;
+  transform: translateX(-50%);
+  animation-delay: 0s;
+}
+
+.loginPageContainer::after {
+  width: 160px;
+  height: 160px;
+  bottom: 10%;
+  left: 55%;
+  transform: translateX(-50%); 
+  animation-delay: 5s;
+}
+
+@keyframes moveCircles {
+  0% { transform: translate(0, 0) scale(1); opacity: 0.6; }
+  25% { transform: translate(10px, -10px) scale(1.05); opacity: 0.7; }
+  50% { transform: translate(0, 0) scale(1); opacity: 0.6; }
+  75% { transform: translate(-10px, 10px) scale(0.95); opacity: 0.5; }
+  100% { transform: translate(0, 0) scale(1); opacity: 0.6; }
+}
+
+.loginBox {
+  background-color: #ffffff;
+  padding: 40px;
+  border-radius: 10px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  width: 500px;
+  max-width: 95%;
+  text-align: left;
+  box-sizing: border-box;
+}
+
+.strokeCarePlusLogo {
+  font-size: 2.5em;
+  font-weight: 700; /* 볼드 */
+  color: #003366;   /* 남색 계열: 진한 네이비 */
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  text-align: center;
+  margin-bottom: 15px; /* 로고 아래 여백 */
+}
+
+.loginHeader {
+  font-size: 1.4em;
+  font-weight: 500;
+  color: #333;
+  text-align: center;
+  margin-bottom: 30px; /* 로그인 제목 아래 여백 */
+}
+
+.inputGroup {
+  margin-bottom: 20px;
+}
+
+.inputGroup label {
+  display: block;
+  margin-bottom: 8px;
+  color: #555;
+  font-weight: 500;
+}
+
+.inputField {
+  width: 100%;
+  padding: 12px 15px;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  font-size: 1em;
+  box-sizing: border-box;
+}
+
+.inputField:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25);
+}
+
+.loginButton {
+  width: 100%;
+  padding: 15px;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  font-size: 1.1em;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+  margin-top: 10px;
+}
+
+.loginButton:hover {
+  background-color: #0056b3;
+}
+
+.loginButton:disabled {
+  background-color: #cccccc;
+  cursor: not-allowed;
+}
+
+.errorMessage {
+  color: #dc3545;
+  margin-top: 15px;
+  font-size: 0.9em;
+  text-align: center;
+}
+
+.signupLinkContainer {
+  margin-top: 30px;
+  font-size: 0.95em;
+  color: #666;
+  text-align: center;
+}
+
+.signupLink {
+  color: #007bff;
+  text-decoration: none;
+  font-weight: 600;
+  margin-left: 5px;
+}
+
+.signupLink:hover {
+  text-decoration: underline;
+}
+

@@ -1,33 +1,29 @@
 import React from 'react';
-import { ROLES } from '../../constants/roles'; 
+// ROLES 상수는 더 이상 필요 없으므로 import에서 제거합니다.
 
-const FunctionSidebar = ({ user, onMenuClick, style }) => {
+// CSS 파일을 import 합니다.
+import './FunctionSidebar.css';
+
+// 현재 활성화된 메뉴를 알기 위해 'activeView' prop을 받습니다.
+const FunctionSidebar = ({ user, onMenuClick, style, activeView }) => {
   if (!user) return null;
 
-  // 메뉴 데이터 정의
+  // 메뉴 데이터에서 icon 속성 제거
   const commonFunctions = [
-    { id: 'vital_signs', name: 'Vital', icon: '❤️' },
-    { id: 'pacs_viewer', name: 'PACS', icon: '🖼️' },
-    { id: 'lab_results', name: 'LAB(추후 없애야함)', icon: '🔬' },
-    { id: 'lab', name: 'LAB', icon: '🔬' },
+    { id: 'vital_signs', name: 'Vital' },
+    { id: 'pacs_viewer', name: 'PACS' },
+    { id: 'lab', name: 'LAB' },
   ];
 
   const aiFunctions = [
-    { id: 'ai_complication_import', name: '합병증 예측', icon: '🤕' },
-    { id: 'ai_death_import', name: '생존 예측', icon: '💀' },
-    { id: 'ai_gene_import', name: '유전자 분석', icon: '🧬' },
-    { id: 'ai_sod2_import', name: 'SOD2 평가', icon: '📊' },
-    { id: 'segmentation', name: '영상 분할(준비중)', icon: '🥟' },
+    { id: 'ai_complication_import', name: '합병증 예측' },
+    { id: 'ai_death_import', name: '생존 예측' },
+    { id: 'ai_gene_import', name: '유전자 분석' },
+    { id: 'ai_sod2_import', name: 'SOD2 평가' },
+    { id: 'segmentation', name: '영상 분할(준비중)' },
   ];
 
-  let roleSpecificFunctions = [];
-  if (user.role === ROLES.NURSE) {
-    roleSpecificFunctions = [{ id: 'nurse_tasks', name: '간호사 기능', icon: '🩺' }];
-  } else if (user.role === ROLES.DOCTOR) {
-    roleSpecificFunctions = [{ id: 'doctor_tasks', name: '의사 기능', icon: '👨‍⚕️' }];
-  } else if (user.role === ROLES.TECHNICIAN) {
-    roleSpecificFunctions = [{ id: 'technician_tasks', name: '검사 기능', icon: '🧪' }];
-  }
+  // 역할별 기능 섹션은 더 이상 필요 없으므로 제거합니다.
 
   const handleMenuItemClick = (viewId) => {
     if (onMenuClick) {
@@ -37,50 +33,53 @@ const FunctionSidebar = ({ user, onMenuClick, style }) => {
     }
   };
 
-  // 메뉴 리스트를 렌더링하는 헬퍼 컴포넌트
   const MenuList = ({ items }) => (
-    <ul style={{ listStyle: 'none', padding: 0 }}>
+    <ul className="menu-list">
       {items.map(func => (
         <li
           key={func.id}
+          className={`menu-item ${activeView === func.id ? 'active' : ''}`}
           onClick={() => handleMenuItemClick(func.id)}
-          style={{ padding: '8px', cursor: 'pointer', borderRadius: '4px', marginBottom: '5px', transition: 'background-color 0.2s', fontSize: '0.9em' }}
-          onMouseEnter={e => e.currentTarget.style.backgroundColor = '#e9ecef'}
-          onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
         >
-          <span style={{ marginRight: '10px' }}>{func.icon}</span>{func.name}
+          {/* 아이콘 렌더링 부분 삭제 */}
+          {func.name}
         </li>
       ))}
     </ul>
   );
 
   return (
-    <div className="function-sidebar" style={{ padding: '15px', borderRight: '1px solid #ddd', ...style }}>
-      <div className="user-profile" style={{ textAlign: 'center', marginBottom: '15px', paddingBottom: '10px', borderBottom: '1px solid #ddd' }}>
-        <h4>{user.name} 님</h4>
-        <p style={{ fontSize: '0.9em', color: '#666' }}>({user.role || '미정'})</p>
-        <p style={{ fontSize: '0.8em', color: '#888' }}>사원번호: {user.id}</p>
+    <div className="sidebar-container" style={style}>
+      <div className="profile-section">
+        <div style={{ fontSize: '1.1rem', fontWeight: '600', marginBottom: '8px'}}>
+          {user.name} 님
+        </div>
+        <div style={{ fontSize: '0.95rem', color: '#777' }}>
+          {user.role || '미정'}
+        </div>
+        <div style={{ fontSize: '0.9rem', color: '#777', marginTop: '4px' }}>
+          사원번호: <span style={{ fontWeight: '500' }}>{user.employee_id}</span>
+        </div>
       </div>
 
-      <hr style={{ margin: '10px 0' }} />
-      <h5>공통 기능</h5>
-      <MenuList items={commonFunctions} />
-
-      <hr style={{ margin: '10px 0' }} />
-      <h5>AI 기능</h5>
-      <MenuList items={aiFunctions} />
-
-      {roleSpecificFunctions.length > 0 && (
-        <>
-          <hr style={{ margin: '10px 0' }} />
-          <h5>{user.role} 주요 기능</h5>
-          <MenuList items={roleSpecificFunctions} />
-        </>
-      )}
-
-      <button onClick={() => handleMenuItemClick('main_dashboard')} style={{ marginTop: '20px', width: '100%', padding: '10px', backgroundColor: '#6c757d', color: 'white', border: 'none', borderRadius: '4px', fontSize: '0.9em' }}>
-        메인 현황판
+      <button
+        onClick={() => handleMenuItemClick('main_dashboard')}
+        className={`main-action-button ${activeView === 'main_dashboard' ? 'active' : ''}`}
+      >
+        환자 요약
       </button>
+
+      <div className="menu-group">
+        <h5 className="menu-group-title">공통 기능</h5>
+        <MenuList items={commonFunctions} />
+      </div>
+
+      <div className="menu-group">
+        <h5 className="menu-group-title">AI 기능</h5>
+        <MenuList items={aiFunctions} />
+      </div>
+
+      {/* 역할별 기능 섹션 렌더링 부분을 제거합니다. */}
     </div>
   );
 };

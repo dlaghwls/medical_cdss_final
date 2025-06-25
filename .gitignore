@@ -37,3 +37,5 @@ media/
 staticfiles/
 *.zip
 medical_cdss_backup.zip
+node_modules/
+package-lock.json
