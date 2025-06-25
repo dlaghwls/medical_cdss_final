@@ -1,0 +1,20 @@
+[
+  {
+    "model": "labs.labtesttype",
+    "pk": "7e088119-83ca-4dde-ad22-273365e7d3c1",
+    "fields": {
+      "name": "CBC",
+      "description": "전혈구검사",
+      "created_at": "2025-06-17T00:00:00Z"
+    }
+  },
+    {
+    "model": "labs.labtesttype",
+    "pk": "4834ad17-12de-45a2-ad27-d888d084bace",
+    "fields": {
+      "name": "ABGA",
+      "description": "동맥혈 가스분석",
+      "created_at": "2025-06-17T00:00:00Z"
+    }
+  }
+]

@@ -1,0 +1,128 @@
+.container {
+  padding: 20px;
+  max-width: 1200px;
+}
+
+.sectionCard {
+  border: 2px solid #007bff;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 30px;
+  background-color: #f8f9fa;
+}
+
+.label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: bold;
+}
+
+.inputField {
+  width: 100%;
+  padding: 8px;
+  border-radius: 4px;
+  border: 1px solid #ddd;
+}
+
+.gridTwoCol {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  font-size: 0.9rem;
+}
+
+.gridAutoFit {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 15px;
+}
+
+.gridAutoWide {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 20px;
+}
+
+.predictButton {
+  padding: 15px 40px;
+  font-size: 1.1rem;
+  font-weight: bold;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  background-color: #28a745;
+  cursor: pointer;
+}
+
+.predictButton:disabled {
+  background-color: #6c757d;
+  cursor: not-allowed;
+}
+
+.errorMessage {
+  padding: 15px;
+  background-color: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+  border-radius: 4px;
+  margin-bottom: 20px;
+}
+
+.resultCard {
+  padding: 20px;
+  border-radius: 8px;
+}
+
+.resultHeader {
+  margin: 0 0 10px 0;
+  font-size: 1.2rem;
+}
+
+.resultPercentage {
+  font-size: 2rem;
+  font-weight: bold;
+  margin-bottom: 10px;
+}
+
+.resultLevel {
+  font-size: 1rem;
+  font-weight: bold;
+}
+
+.resultConfidence {
+  font-size: 0.9rem;
+  margin-top: 8px;
+  opacity: 0.8;
+}
+
+.recommendationBox {
+  margin-top: 20px;
+  padding: 15px;
+  background-color: white;
+  border-radius: 4px;
+}
+
+.riskHigh {
+  color: #dc3545;
+  background-color: #f8d7da;
+  border: 2px solid #dc3545;
+}
+
+.riskMedium {
+  color: #fd7e14;
+  background-color: #ffeaa7;
+  border: 2px solid #fd7e14;
+}
+
+.riskLow {
+  color: #28a745;
+  background-color: #d4edda;
+  border: 2px solid #28a745;
+}
+
+.riskUnknown {
+  color: #6c757d;
+  background-color: #e2e3e5;
+  border: 2px solid #6c757d;
+}

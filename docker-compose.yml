@@ -1,0 +1,302 @@
+version: '3.8'
+
+services:
+  # Django 백엔드
+  django-backend:
+    build:
+      context: ./backend
+    container_name: medical-django-backend
+    command: python /app/backend/manage.py runserver 0.0.0.0:8000
+    ports:
+      - "8000:8000"
+    volumes:
+      # - ./backend:/app
+      - .:/app
+      - ./frontend:/frontend
+    depends_on:
+      - postgres
+      - redis
+      - orthanc
+      - gene_inference
+    environment:
+      - DJANGO_SETTINGS_MODULE=medical_cdss.settings
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/medical_cdss
+      - REDIS_URL=redis://redis:6379/0
+      - DB_NAME=medical_cdss
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+      - DB_HOST=postgres # 수정: 추교상 6-19
+      - DB_PORT=5432
+      - ORTHANC_URL=http://orthanc:8042
+      - ORTHANC_USERNAME=orthanc
+      - ORTHANC_PASSWORD=orthanc
+      - ORTHANC_PUBLIC_URL=http://34.64.188.9:8042
+
+    env_file:
+      - ./.env # medical_cdss-happy 디렉토리의 .env 파일을 참조
+
+    restart: unless-stopped
+    networks:
+      - medical-network
+
+  # React 프론트엔드
+  react-frontend:
+    build: ./frontend
+    container_name: medical-react-frontend
+    ports:
+      - "3001:3000"  # Grafana와 충돌 방지 위해 React는 3001로 변경
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      #/app/node_modules/.cache 디렉토리 생성 권한이 없음(EACCES) 문제로 이 부분 주석처리함 250616_태빈
+    environment:
+      # - REACT_APP_API_URL=http://34.64.54.218:8000
+      - REACT_APP_API_URL=http://34.64.188.9:8000/api/auth # 유정우가 250621 변경 
+      - HOST=0.0.0.0   # ← 추가 (외부 바인딩)
+      - PORT=3000      # ← 명시 (기본값이지만 안전하게)
+      - CHOKIDAR_USEPOLLING=true 
+    restart: unless-stopped
+    networks:
+      - medical-network
+
+  # Celery Worker
+  celery-worker:
+    build:
+      context: ./backend
+    command: celery -A medical_cdss worker --loglevel=info -Q ml_predictions,gene_inference
+    container_name: medical-celery-worker
+    depends_on:
+      - postgres
+      - redis
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    volumes:
+      - ./backend:/app
+    env_file: 
+      - ./.env
+    restart: unless-stopped
+    networks:
+      - medical-network
+
+  # Celery Beat
+  celery-beat:
+    build:
+      context: ./backend
+    command: celery -A medical_cdss beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    container_name: medical-celery-beat
+    depends_on:
+      - postgres
+      - redis
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    env_file:                           # <--- 이 줄과
+      - ./.env 
+    volumes:
+      - ./backend:/app
+      - ./frontend:/frontend
+    restart: unless-stopped
+    networks:
+      - medical-network
+
+  # Flower
+  flower:
+    build: ./backend
+    container_name: medical-flower
+    command: celery -A medical_cdss flower --port=5555
+    ports:
+      - "5555:5555"
+    volumes:
+      - ./backend:/app
+    env_file: 
+      - ./.env
+    depends_on:
+      - redis
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+    restart: unless-stopped
+    networks:
+      - medical-network
+
+  # PostgreSQL
+  postgres:
+    image: postgres:14
+    container_name: medical-postgres
+    environment:
+      POSTGRES_DB: medical_cdss
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    networks:
+      - medical-network
+
+  # Redis
+  redis:
+    image: redis:7-alpine
+    container_name: medical-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    networks:
+      - medical-network
+
+  # Prometheus
+  prometheus:
+    image: prom/prometheus
+    container_name: prometheus
+    volumes:
+      - ./backend/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    networks:
+      - medical-network
+
+  # Grafana
+  grafana:
+    image: grafana/grafana
+    container_name: grafana
+    ports:
+      - "4000:3000"  # React와 충돌 방지
+    volumes:
+      - ./monitoring/grafana_templates:/etc/grafana/provisioning/dashboards
+    networks:
+      - medical-network
+
+  # OpenMRS MariaDB
+  openmrs-db:
+    image: mariadb:10.11
+    container_name: openmrs-mariadb
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: openmrs
+      MYSQL_USER: openmrs
+      MYSQL_PASSWORD: Admin123
+      MYSQL_ROOT_PASSWORD: Admin123
+    command: mysqld --character-set-server=utf8mb4 --collation-server=utf8mb4_general_ci
+    volumes:
+      - openmrs_db_data:/var/lib/mysql
+    networks:
+      - medical-network
+
+  # OpenMRS Backend
+  openmrs-backend:
+    image: openmrs/openmrs-reference-application-3-backend:3.0.0
+    container_name: openmrs-backend-app
+    restart: unless-stopped
+    environment:
+      OMRS_CONFIG_CONNECTION_SERVER: openmrs-db
+      OMRS_CONFIG_CONNECTION_DATABASE: openmrs
+      OMRS_CONFIG_CONNECTION_USERNAME: openmrs
+      OMRS_CONFIG_CONNECTION_PASSWORD: Admin123
+      OMRS_CONFIG_AUTO_UPDATE_DATABASE: "true"
+      OMRS_CONFIG_CREATE_TABLES: "true"
+    ports:
+      - "8081:8080"
+    volumes:
+      - openmrs_app_data:/openmrs/data
+    depends_on:
+      - openmrs-db
+    networks:
+      - medical-network
+
+  # OpenMRS Frontend
+  openmrs-frontend:
+    image: openmrs/openmrs-reference-application-3-frontend:3.0.0
+    container_name: openmrs-frontend-app
+    restart: unless-stopped
+    environment:
+      SPA_PATH: /openmrs/spa
+      API_URL: http://openmrs-backend:8080/openmrs
+    depends_on:
+      - openmrs-backend
+    networks:
+      - medical-network
+
+  # gene_inference_model
+  gene_inference: 
+    build:
+      context: .
+      dockerfile: ./api/gene_inference/Dockerfile
+    container_name: gene_api
+    ports:
+      - "8002:8002"
+    restart: always
+    environment:
+      - PYTHONPATH=/app
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/medical_cdss
+    networks:
+      - medical-network
+
+  # chatbot
+  chatbot:
+    build:
+      context: .
+      dockerfile: ./api/chatbot/Dockerfile
+    container_name: chatbot-api
+    ports:
+      - "8001:8001"
+    depends_on:
+      - postgres
+    env_file:
+      - .env
+    environment:
+      - PYTHONPATH=/app
+    networks:
+      - medical-network
+    restart: always
+
+
+  # Gateway
+  gateway:
+    image: nginx:alpine
+    container_name: openmrs-gateway
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - openmrs-frontend
+      - openmrs-backend
+    networks:
+      - medical-network
+
+  orthanc:
+    image: jodogne/orthanc-plugins:1.12.7
+    container_name: medical-orthanc
+    ports:
+      - "8042:8042"
+      - "4242:4242"
+    volumes:
+      - ./orthanc/orthanc.json:/etc/orthanc/orthanc.json:ro
+      - orthanc_data:/var/lib/orthanc/db
+  # command와 entrypoint 부분 수정
+    entrypoint: ["Orthanc"]
+    command: ["/etc/orthanc/orthanc.json"]
+    restart: unless-stopped
+    networks:
+      - medical-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8042/system"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  postgres_data:
+  redis_data:
+  openmrs_db_data:
+  openmrs_app_data:
+  orthanc_data:
+  
+networks:
+  medical-network:
+    driver: bridge
+

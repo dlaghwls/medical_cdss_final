@@ -1,0 +1,40 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  # Prometheus 자체 모니터링
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Django 앱 (Prometheus Django exporter 필요)
+  - job_name: 'django'
+    static_configs:
+      - targets: ['host.docker.internal:8000'] # Prometheus 컨테이너 외부에서 Django 접근 시
+    metrics_path: /metrics   # Django exporter endpoint (예: django-prometheus)
+
+  # Redis (redis_exporter 사용)
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis_exporter:9121'] # Docker 네트워크 내의 redis_exporter 서비스와 포트
+    # metrics_path: /metrics # redis_exporter의 기본 경로가 /metrics 이므로 생략 가능합니다.
+                              # 명시적으로 두고 싶다면 이대로 두셔도 됩니다.
+
+  # PostgreSQL (Postgres exporter 사용)
+  - job_name: 'postgresql'
+    static_configs:
+      # postgres_exporter 서비스가 별도로 있다면 그 서비스:포트를,
+      # 없다면 호스트 머신에 노출된 postgres_exporter 포트를 사용합니다.
+      # 여기서는 예시로 host.docker.internal을 유지하지만, 실제 환경에 맞게 확인 필요합니다.
+      - targets: ['host.docker.internal:9187'] # 실제 postgres_exporter 주소로 변경 필요
+    metrics_path: /metrics   # postgres_exporter 기본 endpoint
+
+  # OpenMRS (JMX exporter 등 활용)
+  - job_name: 'openmrs'
+    static_configs:
+      # OpenMRS가 메트릭을 제공하는 방식에 따라 target 및 metrics_path 수정 필요
+      # 여기서는 예시로 host.docker.internal을 유지하지만, 실제 환경에 맞게 확인 필요합니다.
+      - targets: ['host.docker.internal:8080'] # 실제 OpenMRS 메트릭 제공 주소로 변경 필요
+    metrics_path: /actuator/prometheus   # spring-actuator 사용시의 예시 경로
+
+# 필요시 job_name, metrics_path 등 서비스 환경에 맞게 조정

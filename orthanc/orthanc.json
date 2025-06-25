@@ -1,0 +1,30 @@
+{
+  "Name": "Medical CDSS Orthanc",
+  "StorageDirectory": "/var/lib/orthanc/db",
+  "IndexDirectory": "/var/lib/orthanc/db",
+  "HttpPort": 8042,
+  "DicomPort": 4242,
+  "RemoteAccessAllowed": true,
+  "SslEnabled": false,
+  "AuthenticationEnabled": true,
+  "RegisteredUsers": {
+    "orthanc": "orthanc"
+  },
+  "Plugins": [
+    "/usr/local/share/orthanc/plugins/libOrthancWebViewer.so", 
+    "/usr/local/share/orthanc/plugins/libOrthancGdcm.so",
+    "/usr/local/share/orthanc/plugins/libOrthancDicomWeb.so"
+  ],
+  "Gdcm": {
+    "Enable": true,
+    "Throttling": 4
+  },
+  "DicomWeb" : {
+    "Enable" : true,
+    "Root" : "/dicom-web/",
+    "CorsAllowOrigins" : "*",
+
+    "CorsAllowMethods" : "GET, POST, PUT, DELETE, OPTIONS",
+    "CorsAllowHeaders" : "Content-Type, Authorization"
+  }
+}

@@ -1,0 +1,35 @@
+.container {
+  padding: 20px;
+  max-width: 1000px;
+}
+
+.heading {
+  font-size: 1.5rem;
+  color: #333;
+  margin-bottom: 10px;
+}
+
+.description {
+  color: #666;
+  margin-bottom: 30px;
+}
+
+.riskHigh {
+  color: #dc3545;
+  font-weight: bold;
+}
+
+.riskMedium {
+  color: #ffc107;
+  font-weight: bold;
+}
+
+.riskLow {
+  color: #28a745;
+  font-weight: bold;
+}
+
+.riskUnknown {
+  color: #6c757d;
+  font-weight: normal;
+}

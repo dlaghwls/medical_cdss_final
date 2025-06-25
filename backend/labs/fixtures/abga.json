@@ -1,0 +1,120 @@
+[
+  {
+    "model": "labs.labtestitem",
+    "pk": "83c65ae6-30d3-4c76-84ae-398b031caa31",
+    "fields": {
+      "test_type": "4834ad17-12de-45a2-ad27-d888d084bace",
+      "name": "pH",
+      "unit": "",
+      "ref_low": "7.35",
+      "ref_high": "7.45",
+      "gender_ref": "",
+      "sort_order": 1
+    }
+  },
+  {
+    "model": "labs.labtestitem",
+    "pk": "4f804ca9-f2d7-48a8-ab8d-b9d68e8c207b",
+    "fields": {
+      "test_type": "4834ad17-12de-45a2-ad27-d888d084bace",
+      "name": "pCO₂",
+      "unit": "mmHg",
+      "ref_low": "35",
+      "ref_high": "45",
+      "gender_ref": "",
+      "sort_order": 2
+    }
+  },
+  {
+    "model": "labs.labtestitem",
+    "pk": "5afc7db5-078f-4bf2-a6f5-0b7c72cc13f6",
+    "fields": {
+      "test_type": "4834ad17-12de-45a2-ad27-d888d084bace",
+      "name": "pO₂",
+      "unit": "mmHg",
+      "ref_low": "80",
+      "ref_high": "100",
+      "gender_ref": "",
+      "sort_order": 3
+    }
+  },
+  {
+    "model": "labs.labtestitem",
+    "pk": "13d2f36c-f80c-4531-89df-57b281e939b0",
+    "fields": {
+      "test_type": "4834ad17-12de-45a2-ad27-d888d084bace",
+      "name": "HCO₃⁻",
+      "unit": "mmol/L",
+      "ref_low": "22",
+      "ref_high": "26",
+      "gender_ref": "",
+      "sort_order": 4
+    }
+  },
+  {
+    "model": "labs.labtestitem",
+    "pk": "872c1560-b351-4c1e-9bb8-ea1c3dd96a5c",
+    "fields": {
+      "test_type": "4834ad17-12de-45a2-ad27-d888d084bace",
+      "name": "Base Excess",
+      "unit": "mmol/L",
+      "ref_low": "-2",
+      "ref_high": "+2",
+      "gender_ref": "",
+      "sort_order": 5
+    }
+  },
+  {
+    "model": "labs.labtestitem",
+    "pk": "f16049c8-e899-4b7c-a55d-7c6e57433164",
+    "fields": {
+      "test_type": "4834ad17-12de-45a2-ad27-d888d084bace",
+      "name": "SaO₂",
+      "unit": "%",
+      "ref_low": "95",
+      "ref_high": "100",
+      "gender_ref": "",
+      "sort_order": 6
+    }
+  },
+  {
+    "model": "labs.labtestitem",
+    "pk": "23725d98-5d57-4c85-9067-fb805d1fbc64",
+    "fields": {
+      "test_type": "4834ad17-12de-45a2-ad27-d888d084bace",
+      "name": "tCO₂",
+      "unit": "mmol/L",
+      "ref_low": "23",
+      "ref_high": "29",
+      "gender_ref": "",
+      "sort_order": 7
+    }
+  },
+  {
+    "model": "labs.labtestitem",
+    "pk": "d681c47a-6f18-4d0b-b254-5ad05e98ee95",
+    "fields": {
+      "test_type": "4834ad17-12de-45a2-ad27-d888d084bace",
+      "name": "FiO₂ (room air)",
+      "unit": "%",
+      "ref_low": "21",
+      "ref_high": "21",
+      "gender_ref": "",
+      "sort_order": 8
+    }
+  },
+  {
+    "model": "labs.labtestitem",
+    "pk": "aa52b40d-ff1b-49d4-858f-9b747c123314",
+    "fields": {
+      "test_type": "4834ad17-12de-45a2-ad27-d888d084bace",
+      "name": "Lactate",
+      "unit": "mmol/L",
+      "ref_low": "0.5",
+      "ref_high": "2.2",
+      "gender_ref": "",
+      "sort_order": 9
+    }
+  }
+]
+

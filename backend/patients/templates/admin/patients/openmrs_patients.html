@@ -1,0 +1,49 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls static admin_list %}
+
+{% block title %}{{ title }} | {{ site_title|default:_('Django site admin') }}{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+<a href="{% url 'admin:index' %}">{% trans 'Home' %}</a>
+&rsaquo; <a href="{% url 'admin:app_list' app_label='patients' %}">Patients</a>
+&rsaquo; {{ title }}
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="module">
+    <div class="results">
+        <table id="result_list">
+            <thead>
+                <tr>
+                    <th scope="col">Patient ID</th>
+                    <th scope="col">이름</th>
+                    <th scope="col">성별</th>
+                    <th scope="col">생년월일</th>
+                    <th scope="col">성</th>
+                    <th scope="col">이름</th>
+                    <th scope="col">OpenMRS UUID</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for patient in patients %}
+                <tr class="{% cycle 'row1' 'row2' %}">
+                    <td>{{ patient.identifier|default:"-" }}</td>
+                    <td>{{ patient.display_name|default:"-" }}</td>
+                    <td>{{ patient.gender|default:"-" }}</td>
+                    <td>{{ patient.birthdate|default:"-" }}</td>
+                    <td>{{ patient.family_name|default:"-" }}</td>
+                    <td>{{ patient.given_name|default:"-" }}</td>
+                    <td>{{ patient.uuid }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7">환자 데이터가 없습니다.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

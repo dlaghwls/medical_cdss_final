@@ -1,0 +1,118 @@
+.container {
+  padding: 20px;
+  max-width: 1000px;
+}
+
+.description {
+  color: #666;
+  margin-bottom: 30px;
+}
+
+.patientCard {
+  border: 2px solid #007bff;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 30px;
+  background-color: #f8f9fa;
+}
+
+.patientHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.patientName {
+  color: #007bff;
+  margin: 5px 0;
+}
+
+.patientUuid {
+  margin: 5px 0;
+  color: #666;
+}
+
+.reselectButton {
+  padding: 10px 20px;
+  background-color: #6c757d;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.moduleGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 20px;
+}
+
+.moduleCard {
+  border-radius: 8px;
+  padding: 25px;
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.available {
+  border: 2px solid #28a745;
+  background-color: white;
+  cursor: pointer;
+  opacity: 1;
+}
+
+.comingSoon {
+  border: 2px solid #dee2e6;
+  background-color: #f8f9fa;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.moduleTitle {
+  margin: 0 0 15px 0;
+  font-size: 1.3rem;
+}
+
+.moduleAvailable {
+  color: #28a745;
+}
+
+.moduleDisabled {
+  color: #6c757d;
+}
+
+.moduleDesc {
+  color: #666;
+  line-height: 1.5;
+  margin: 0 0 15px 0;
+}
+
+.statusTag {
+  padding: 8px 16px;
+  border-radius: 4px;
+  text-align: center;
+  font-weight: bold;
+  color: white;
+}
+
+.tagAvailable {
+  background-color: #28a745;
+}
+
+.tagDisabled {
+  background-color: #6c757d;
+}
+
+.note {
+  margin-top: 30px;
+  padding: 15px;
+  background-color: #e3f2fd;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  color: #1976d2;
+}
+
+.available:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+}

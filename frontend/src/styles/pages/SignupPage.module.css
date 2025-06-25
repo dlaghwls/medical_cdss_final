@@ -1,0 +1,241 @@
+/* 전체 컨테이너 
+.container {
+  max-width: 450px;
+  margin: 50px auto;
+  padding: 20px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+/* 제목 
+.header {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+/* 일반 폼 그룹 
+.formGroup {
+  margin-bottom: 10px;
+}
+
+/* 입력 필드 스타일 
+.inputField {
+  width: calc(100% - 22px);
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+/* 비밀번호 확인 필드 
+.passwordField {
+  margin-bottom: 15px;
+}
+
+/* 버튼 스타일 
+.submitButton {
+  width: 100%;
+  padding: 10px 15px;
+  background-color: #28a745;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+/* 에러 메시지 
+.errorMessage {
+  color: red;
+  margin-top: 10px;
+  text-align: center;
+}
+
+/* 로그인 링크 
+.loginLink {
+  text-align: center;
+  margin-top: 20px;
+}
+
+/* 로그인 링크 스타일 
+.loginLink a {
+  color: #007bff;
+  text-decoration: none;
+} 
+
+///////////////////////////////////////////////////////////////
+/* 전체 컨테이너 
+.container {
+  max-width: 420px;
+  margin: 60px auto;
+  padding: 30px;
+  border-radius: 12px;
+  border: 1px solid #e0e0e0;
+  background-color: #ffffff;
+  box-shadow: 0px 4px 16px rgba(0,0,0,.1);
+}
+
+/* 제목 
+.header {
+  font-size: 1.5rem;
+  font-weight: bold;
+  text-align: center;
+  color: #333;
+  margin-bottom: 25px;
+}
+
+/* 일반 폼 그룹 
+.formGroup {
+  margin-bottom: 18px;
+}
+
+/* 입력 필드 스타일 
+.inputField {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #d9d9d9;
+  border-radius: 6px;
+  font-size: 15px;
+  color: #333;
+  transition: border-color 0.2s;
+}
+
+.inputField:focus {
+  border-color: #007bff;
+  outline: none;
+}
+
+/* 비밀번호 확인 필드 
+.passwordField {
+  margin-bottom: 20px;
+}
+
+/* 버튼 스타일 
+.submitButton {
+  width: 100%;
+  padding: 12px 16px;
+  background-color: #007bff;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 500;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.submitButton:hover {
+  background-color: #0056b3;
+}
+
+/* 에러 메시지 
+.errorMessage {
+  color: #d9534f;
+  margin-top: 12px;
+  font-size: 14px;
+  text-align: center;
+}
+
+/* 로그인 링크 
+.loginLink {
+  text-align: center;
+  margin-top: 25px;
+}
+
+.loginLink a {
+  color: #007bff;
+  font-size: 15px;
+  text-decoration: none;
+}
+
+.loginLink a:hover {
+  text-decoration: underline;
+}
+
+/* 전체 컨테이너 */
+.container {
+  max-width: 420px;
+  margin: 60px auto;
+  padding: 30px;
+  border-radius: 12px;
+  border: 1px solid #e0e0e0;
+  background-color: #ffffff;
+  box-shadow: 0px 4px 16px rgba(0,0,0,.1);
+}
+
+/* 제목 */
+.header {
+  font-size: 1.5rem;
+  font-weight: bold;
+  text-align: center;
+  color: #333;
+  margin-bottom: 25px;
+}
+
+/* 일반 폼 그룹 */
+.formGroup {
+  margin-bottom: 18px;
+}
+
+/* 비밀번호 확인 필드 */
+.passwordField {
+  margin-bottom: 25px;
+}
+
+/* 입력 필드 스타일 */
+.inputField {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #d9d9d9;
+  border-radius: 6px;
+  font-size: 15px;
+  color: #333;
+  transition: border-color 0.2s;
+}
+
+.inputField:focus {
+  border-color: #007bff;
+  outline: none;
+}
+
+/* 버튼 스타일 */
+.submitButton {
+  width: 100%;
+  padding: 12px 16px;
+  background-color: #007bff;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 500;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.submitButton:hover {
+  background-color: #0056b3;
+}
+
+/* 에러 메시지 */
+.errorMessage {
+  color: #d9534f;
+  margin-top: 12px;
+  font-size: 14px;
+  text-align: center;
+}
+
+/* 로그인 링크 */
+.loginLink {
+  text-align: center;
+  margin-top: 25px;
+}
+
+.loginLink a {
+  color: #007bff;
+  font-size: 15px;
+  text-decoration: none;
+}
+
+.loginLink a:hover {
+  text-decoration: underline;
+}

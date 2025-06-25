@@ -1,0 +1,268 @@
+.wrapper {
+  padding: 30px;
+  background-color: #f5f7fa;
+  font-family: 'Segoe UI', sans-serif;
+  color: #333;
+}
+
+.pageTitle {
+  font-size: 1.5rem;
+  font-weight: bold;
+  margin-bottom: 20px;
+  color: #2c3e50;
+}
+
+.patientCard {
+  background: #ffffff;
+  border: 1px solid #e0e0e0;
+  padding: 20px;
+  border-radius: 10px;
+  margin-bottom: 30px;
+}
+
+.patientInfo {
+  margin-bottom: 10px;
+  line-height: 1.8;
+}
+
+.label {
+  font-weight: bold;
+  color: #007bff;
+}
+
+.backButton {
+  background-color: #ddd;
+  padding: 6px 12px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-top: 10px;
+}
+
+.noticeBox,
+.loadingNotice {
+  padding: 15px;
+  background-color: #fef3c7;
+  border-left: 5px solid #f59e0b;
+  border-radius: 5px;
+  margin-top: 10px;
+}
+
+.primaryButton {
+  margin-top: 10px;
+  background-color: #007bff;
+  color: #fff;
+  padding: 6px 12px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.labSummaryBox {
+  margin-top: 15px;
+  background-color: #eef6ff;
+  border: 1px solid #cce5ff;
+  padding: 10px;
+  border-radius: 8px;
+}
+
+.labGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 8px;
+  font-size: 0.9rem;
+}
+
+.inputSection {
+  margin-top: 30px;
+}
+
+.inputHint {
+  color: #666;
+  margin-bottom: 10px;
+}
+
+.inputSubSection {
+  margin-top: 20px;
+}
+
+.optionalNote {
+  font-size: 0.85rem;
+  color: #888;
+  margin-top: -10px;
+  margin-bottom: 10px;
+}
+
+.inputGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 10px;
+}
+
+.inputBox label {
+  display: block;
+  font-weight: 500;
+  margin-bottom: 4px;
+}
+
+.inputField {
+  width: 100%;
+  padding: 6px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.buttonWrapper {
+  margin-top: 20px;
+  text-align: center;
+}
+
+.predictButton {
+  background-color: #4caf50;
+  color: #fff;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 6px;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.errorMsg {
+  color: #c0392b;
+  background-color: #fdecea;
+  padding: 10px;
+  border-left: 4px solid #e74c3c;
+  margin-top: 20px;
+  border-radius: 6px;
+}
+
+.resultSection {
+  margin-top: 30px;
+}
+
+.analysisTime {
+  font-size: 0.9rem;
+  color: #888;
+  margin-bottom: 10px;
+}
+
+.resultGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 15px;
+}
+
+.resultBox {
+  background-color: #fff;
+  padding: 16px;
+  border-radius: 10px;
+  border-left: 6px solid #ccc;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.percent {
+  font-size: 2rem;
+  font-weight: bold;
+  color: #2c3e50;
+}
+
+.riskLevel {
+  font-size: 1rem;
+  margin-top: 4px;
+  font-weight: 500;
+}
+
+.confidence {
+  font-size: 0.85rem;
+  color: #555;
+  margin-top: 6px;
+}
+
+.riskHigh {
+  border-left-color: #e74c3c !important;
+}
+
+.riskMedium {
+  border-left-color: #f39c12 !important;
+}
+
+.riskLow {
+  border-left-color: #2ecc71 !important;
+}
+
+.riskUnknown {
+  border-left-color: #bdc3c7 !important;
+}
+
+.clinicalBox {
+  margin-top: 20px;
+  padding: 15px;
+  background-color: #f9f9f9;
+  border: 1px dashed #ccc;
+  border-radius: 10px;
+}
+
+.clinicalBox h5 {
+  margin-bottom: 10px;
+}
+
+.clinicalBox ul {
+  padding-left: 20px;
+  margin: 0;
+}
+
+.clinicalBox li {
+  margin-bottom: 4px;
+}
+
+.disclaimer {
+  font-size: 0.8rem;
+  color: #777;
+  margin-top: 10px;
+  line-height: 1.4;
+}
+
+/* 사망률 예측 전용 스타일 */
+.mortalityResult {
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  border-radius: 12px;
+  padding: 24px;
+  margin: 20px 0;
+  border-left: 6px solid #6c757d;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.mortalityResult.riskHigh {
+  border-left-color: #dc3545;
+  background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
+}
+
+.mortalityResult.riskMedium {
+  border-left-color: #fd7e14;
+  background: linear-gradient(135deg, #ffeaa7 0%, #fdcb6e 100%);
+}
+
+.mortalityResult.riskLow {
+  border-left-color: #28a745;
+  background: linear-gradient(135deg, #d1edcc 0%, #c3e6cb 100%);
+}
+
+.mortalityHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.mortalityPercent {
+  font-size: 2.5rem;
+  font-weight: bold;
+  color: #2c3e50;
+}
+
+.survivalRate {
+  font-size: 1.1rem;
+  color: #27ae60;
+  font-weight: 600;
+  margin-top: 8px;
+}
