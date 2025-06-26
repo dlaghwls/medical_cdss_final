@@ -1,4 +1,4 @@
-// /home/shared/medical_cdss/frontend/src/services/aiService.js
+// frontend/src/services/aiService.js
 
 // 기존 Django API용 apiClient를 djangoApiClient로 임포트합니다.
 import { apiClient as djangoApiClient } from './djangoApiService'; 
@@ -28,10 +28,27 @@ const aiService = {
         }
     },
 
+    /**
+     * ⭐⭐⭐ 새로 추가된 함수 ⭐⭐⭐
+     * 사망률 예측을 위한 데이터를 백엔드로 전송합니다.
+     * 엔드포인트: ml_models/predict/mortality/
+     * @param {object} patientData - 사망률 예측에 필요한 환자 데이터
+     * @returns {Promise<object>} 예측 결과 데이터를 포함하는 Promise
+     */
+    predictMortality: async (patientData) => {
+        try {
+            const response = await djangoApiClient.post('ml_models/predict/mortality/', patientData);
+            return response.data;
+        } catch (error) {
+            console.error("Error predicting mortality:", error.response?.data || error.message);
+            throw error;
+        }
+    },
+
     registerComplicationsAndMedications: async (data) => {
         try {
             // djangoApiClient를 사용하여 Django API 호출
-            const response = await djangoApiClient.post('lab-results/complications-medications/', data);
+            const response = await djangoApiClient.post('ml_models/register-complications-data/', data);
             return response.data;
         } catch (error) {
             console.error("Error registering complications/medications:", error.response?.data || error.message);
@@ -41,7 +58,7 @@ const aiService = {
 
     fetchComplicationsHistory: async (patientUuid) => {
         try {
-            // djangoApiClient를 사용하여 Django API 호출
+        // 기존에 동작하던 엔드포인트로 복구
             const response = await djangoApiClient.get(`lab-results/complications-medications/?patient_uuid=${patientUuid}`);
             return response.data;
         } catch (error) {
@@ -57,9 +74,6 @@ const aiService = {
      */
     registerMortalityData: async (data) => {
         try {
-            // LabResultsView.js의 handleSubmit에 있던 로직을 기반으로 재구성합니다.
-            // 백엔드 API 엔드포인트는 '/ml_models/register-mortality-data/' 등으로 가정합니다.
-            // 실제 엔드포인트에 맞게 수정해주세요.
             const response = await djangoApiClient.post('ml_models/register-mortality-data/', data);
             return response.data;
         } catch (error) {
@@ -75,8 +89,7 @@ const aiService = {
      */
     fetchMortalityHistory: async (patientUuid) => {
         try {
-            // 실제 엔드포인트에 맞게 수정해주세요.
-            const response = await djangoApiClient.get(`ml_models/mortality-history/?patient_uuid=${patientUuid}`);
+            const response = await djangoApiClient.get(`ml_models/mortality-history/${patientUuid}/`);
             return response.data;
         } catch (error) {
             console.error(`Error fetching mortality history for patient ${patientUuid}:`, error.response || error);
@@ -85,24 +98,8 @@ const aiService = {
     },
 
     /**
-     * 사망률 예측을 위한 데이터를 백엔드로 전송합니다.
-     * 엔드포인트: ml_models/predict_mortality/
-     * @param {object} data - 사망률 예측에 필요한 데이터
-     * @returns {Promise<object>} 예측 결과 데이터를 포함하는 Promise
-     */
-    predictMortality: async (data) => {
-        try {
-            const response = await djangoApiClient.post('ml_models/predict_mortality/', data);
-            return response.data;
-        } catch (error) {
-            console.error('사망률 예측 API 오류:', error);
-            throw error;
-        }
-    },
-
-    /**
      * SOD2 상태 평가를 위한 데이터를 백엔드로 전송합니다.
-     * 엔드포인트: ml/sod2/assess/ (프로젝트 지식에서 확인된 경로)
+     * 엔드포인트: ml/sod2/assess/
      * @param {object} assessmentData - SOD2 평가에 필요한 데이터
      * @returns {Promise<object>} 평가 결과 데이터를 포함하는 Promise
      */
@@ -120,14 +117,14 @@ const aiService = {
 
     /**
      * 특정 환자의 SOD2 평가 이력을 조회합니다.
-     * 엔드포인트: ml/patient/{patientUuid}/sod2/assessments/
+     * 엔드포인트: ml/patients/{patientUuid}/sod2/assessments/
      * @param {string} patientUuid - 환자 UUID
      * @returns {Promise<Array>} SOD2 평가 이력 배열
      */
     fetchSOD2Assessments: async (patientUuid) => {
         try {
             console.log('SOD2 평가 이력 조회:', patientUuid);
-            const response = await djangoApiClient.get(`ml/patient/${patientUuid}/sod2/assessments/`);
+            const response = await djangoApiClient.get(`ml/patients/${patientUuid}/sod2/assessments/`);
             console.log('SOD2 평가 이력 응답:', response.data);
             
             // 백엔드 응답 구조에 따라 적절히 반환
@@ -148,14 +145,14 @@ const aiService = {
 
     /**
      * 특정 환자의 최신 SOD2 평가 결과를 조회합니다.
-     * 엔드포인트: ml/patient/{patientUuid}/sod2/latest/
+     * 엔드포인트: ml/patients/{patientUuid}/sod2/latest/
      * @param {string} patientUuid - 환자 UUID
      * @returns {Promise<object | null>} 최신 SOD2 평가 결과 또는 없을 경우 null
      */
     fetchLatestSOD2Assessment: async (patientUuid) => {
         try {
             console.log('최신 SOD2 평가 조회:', patientUuid);
-            const response = await djangoApiClient.get(`ml/patient/${patientUuid}/sod2/latest/`);
+            const response = await djangoApiClient.get(`ml/patients/${patientUuid}/sod2/latest/`);
             console.log('최신 SOD2 평가 응답:', response.data);
             return response.data;
         } catch (error) {
@@ -170,7 +167,7 @@ const aiService = {
 
     /**
      * 뇌졸중 관련 정보를 Django 백엔드에 저장합니다.
-     * 엔드포인트: lab-results/stroke-info/ (기존 경로 유지)
+     * 엔드포인트: lab-results/stroke-info/
      * @param {object} data - 뇌졸중 정보 데이터
      * @returns {Promise<object>}
      */
@@ -187,7 +184,7 @@ const aiService = {
     },
 
     /**
-     * 뇌졸중 정보 이력을 조회합니다.
+     * 특정 환자의 뇌졸중 정보 이력을 조회합니다.
      * @param {string} patientUuid - 환자 UUID
      * @returns {Promise<Array>} 뇌졸중 정보 이력 배열
      */
@@ -205,12 +202,10 @@ const aiService = {
 
     /**
      * 유전자 CSV 파일을 백엔드(FastAPI)로 업로드하여 분석을 요청합니다.
-     * 이제 patient_uuid는 FormData에 별도의 필드로 포함되어 백엔드로 전송됩니다.
-     * 백엔드에서는 이 patient_uuid를 사용하여 데이터를 할당합니다.
      * @param {FormData} formData - 'file'과 'patient_uuid'를 포함하는 FormData 객체.
      * @returns {Promise<object>} 분석 결과 데이터를 포함하는 Promise
      */
-    uploadGeneCSV: async (formData) => { // FormData 객체를 인자로 받음
+    uploadGeneCSV: async (formData) => {
         try {
             // FastAPI의 /predict_csv 엔드포인트로 FormData 전송
             const response = await axios.post(`${FASTAPI_GENE_API_BASE_URL}/predict_csv`, formData, {
@@ -248,20 +243,52 @@ const aiService = {
      */
     fetchLatestGeneAssessment: async (patientUuid) => {
         try {
-            // 과거 기록 엔드포인트를 활용하여 최신 결과를 가져옵니다.
-            // 백엔드에서 정렬된 상태로 배열이 오면 마지막 요소가 최신입니다.
-            // 또는, 백엔드에 `/gene_results/{patient_uuid}/latest`와 같은 전용 엔드포인트를 만드는 것이 더 효율적입니다.
             const response = await axios.get(`${FASTAPI_GENE_API_BASE_URL}/gene_results/${patientUuid}`);
             const data = response.data;
             if (data && data.length > 0) {
-                // created_at으로 내림차순 정렬되어 있다고 가정하거나,
-                // 프론트에서 다시 정렬하여 가장 최신(마지막) 결과를 가져옵니다.
                 // 백엔드 get_gene_results는 created_at 오름차순으로 정렬되므로, 마지막 요소가 최신입니다.
-                return data[data.length - 1]; 
+                return data[data.length - 1];
             }
             return null;
         } catch (error) {
-            console.error('최신 유전자 분석 결과 조회 실패:', error.response?.data || error.message);
+            console.error('최신 유전자 분석 결과 불러오기 오류:', error.response?.data || error.message);
+            throw error;
+        }
+    },
+
+    /**
+     * 활력 징후 데이터를 백엔드에 저장합니다.
+     * @param {object} vitalData - 저장할 활력 징후 데이터
+     * @returns {Promise<object>} - 저장된 데이터
+     */
+    saveVitals: async (vitalData) => {
+        try {
+            const response = await djangoApiClient.post('vitals/', vitalData);
+            return response.data;
+        } catch (error) {
+            console.error('Error saving vitals:', error.response || error);
+            throw error;
+        }
+    },
+
+    /**
+     * 특정 환자의 활력 징후 기록을 가져옵니다.
+     * @param {string} patientUuid - 환자의 UUID
+     * @param {string} period - 조회 기간 (예: '1d', '7d')
+     * @returns {Promise<Array>} - 활력 징후 기록 배열
+     */
+    fetchVitalsHistory: async (patientUuid, period = '1d') => {
+        try {
+            const response = await djangoApiClient.get(`vitals/?patient_uuid=${patientUuid}&period=${period}`);
+            
+            // DRF의 페이지네이션 응답을 처리하여 결과 배열만 반환합니다.
+            if (response.data && Array.isArray(response.data.results)) {
+                return response.data.results;
+            }
+            // 페이지네이션이 없는 경우, 받은 데이터 그대로 반환합니다.
+            return response.data;
+        } catch (error) {
+            console.error('Error fetching vitals history:', error.response || error);
             throw error;
         }
     },

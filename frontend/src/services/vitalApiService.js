@@ -33,7 +33,7 @@ export const saveVitals = async (vitalData) => {
  * @param {string} period - 조회 기간 (예: '1d', '7d')
  * @returns {Promise<Array>} - 활력 징후 기록 배열
  */
-export const fetchVitalsHistory = async (patientUuid, period = '1d') => {
+export const fetchVitalsHistory = async (patientUuid, period = '30d') => {
     try {
         // 백엔드 API의 파라미터 이름('patient_uuid')에 맞춰 요청합니다.
         const response = await apiClient.get(`/vitals/?patient_uuid=${patientUuid}&period=${period}`);
