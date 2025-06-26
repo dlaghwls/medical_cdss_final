@@ -8,9 +8,9 @@ import LabResultsView from './LabResultsView';
 // AI 입력 폼 컴포넌트 임포트 (기존 유지)
 import ComplicationManagementView from '../../pages/ComplicationManagementView';
 import DeathManagementView from '../../pages/DeathManagementView';
-import GeneImport from '../../pages/AI_import/Gene_import';
+import GeneManagementView from '../../pages/GeneManagementView';
 import SOD2ManagementView from '../../pages/SOD2ManagementView';
-
+import SegmentationBrowser from '../segmentation/SegmentationBrowser'; // 유정우넌할수있어
 //lab
 import LabPage from '../Lab/LabPage';
 
@@ -67,17 +67,16 @@ const MainView = ({ currentViewId, user, onViewChange, selectedPatient, onSelect
         case 'vital_signs':
             content = renderContentOrPrompt(VitalSignsPage);
             break;
+        // 유정우넌할수있어
         case 'pacs_viewer':
             content = renderContentOrPrompt(PacsViewer);
             break;
-        
-        // TODO: [리팩토링 후 삭제 예정] - 이 case는 LabResultsView의 기능들이 모두 분리되면 삭제합니다.
-        case 'lab_results':
-            content = renderContentOrPrompt(LabResultsView);
+        case 'segmentation_browser':
+            content = renderContentOrPrompt(SegmentationBrowser);
             break;
-
         case 'lab':
             content = renderContentOrPrompt(LabPage);
+            
             break;
         case 'ai_complication_import':
             content = renderContentOrPrompt(ComplicationManagementView);
@@ -86,7 +85,7 @@ const MainView = ({ currentViewId, user, onViewChange, selectedPatient, onSelect
             content = renderContentOrPrompt(DeathManagementView);
             break;
         case 'ai_gene_import':
-            content = renderContentOrPrompt(GeneImport);
+            content = renderContentOrPrompt(GeneManagementView);
             break;
         case 'ai_sod2_import':
             content = renderContentOrPrompt(SOD2ManagementView);

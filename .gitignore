@@ -42,3 +42,4 @@ package-lock.json
 gcp-service-account.json
 *.json
 ai_segmentation_service/
+backend/temp_files/

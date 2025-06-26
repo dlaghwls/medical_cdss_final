@@ -1,97 +1,304 @@
-// /home/shared/medical_cdss/frontend/src/components/AI_result/Complication_history_view.js
-import React, { useState, useEffect } from 'react';
-// ★★★ 상단의 aiService 임포트 구문을 삭제합니다. ★★★
-// import aiService from '../../services/aiService';
+// /home/shared/medical_cdss/frontend/src/components/AI_result/Complication_result.js
+import React from 'react';
 
-// LabResultsView.js에 있던 정보 포맷팅 함수를 재사용합니다.
-const formatComplicationsRecord = (record) => {
-    const complicationLabels = { 
-        sepsis: '패혈증', 
-        respiratory_failure: '호흡부전', 
-        deep_vein_thrombosis: '심부정맥혈전증', 
-        pulmonary_embolism: '폐색전증', 
-        urinary_tract_infection: '요로감염', 
-        gastrointestinal_bleeding: '위장관 출혈' 
-    };
-    const medicationLabels = { 
-        anticoagulant_flag: '항응고제', 
-        antiplatelet_flag: '항혈소판제', 
-        thrombolytic_flag: '혈전용해제', 
-        antihypertensive_flag: '항고혈압제', 
-        statin_flag: '스타틴', 
-        antibiotic_flag: '항생제', 
-        vasopressor_flag: '승압제' 
-    };
-    const complicationEntries = Object.entries(record.complications || {}).filter(([, value]) => value).map(([key]) => complicationLabels[key]);
-    const medicationEntries = Object.entries(record.medications || {}).filter(([, value]) => value).map(([key]) => medicationLabels[key]);
-    
-    return [
-        { label: '조회된 합병증', value: complicationEntries.length > 0 ? complicationEntries.join(', ') : '해당 없음' },
-        { label: '처방된 약물', value: medicationEntries.length > 0 ? medicationEntries.join(', ') : '해당 없음' },
-        { label: '기록 시각', value: new Date(record.recorded_at).toLocaleString() },
-        { label: '비고', value: record.notes || '없음' }
-    ];
-};
+/**
+ * 합병증 예측 결과 표시 컴포넌트
+ * SOD2_result.js와 일관된 구조로 만들어진 컴포넌트
+ * @param {{ predictionData: object, analysisTime?: string }} props 
+ */
+export const ComplicationResult = ({ predictionData, analysisTime }) => {
+    if (!predictionData) {
+        return (
+            <div style={{ padding: '20px', textAlign: 'center', color: '#666' }}>
+                예측 결과가 없습니다.
+            </div>
+        );
+    }
 
-export const ComplicationHistoryView = ({ selectedPatient }) => {
-    const [records, setRecords] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
-
-    useEffect(() => {
-        // 환자 선택이 해제되면 기존 기록을 비우고 함수를 종료합니다.
-        if (!selectedPatient?.uuid) {
-            setLoading(false);
-            setRecords([]); 
-            return;
-        }
-
-        // 데이터를 불러오는 비동기 함수를 정의합니다.
-        const fetchHistory = async () => {
-            setLoading(true);
-            setError(null);
-            try {
-                // ★★★ 수정된 부분: 함수가 호출되는 시점에 aiService를 동적으로 임포트합니다. ★★★
-                const { default: aiService } = await import('../../services/aiService');
-
-                // 이제 aiService 객체를 통해 함수를 정상적으로 호출할 수 있습니다.
-                const data = await aiService.fetchComplicationsHistory(selectedPatient.uuid);
-
-                const sortedData = data.sort((a, b) => new Date(b.recorded_at) - new Date(a.recorded_at));
-                setRecords(sortedData);
-            } catch (err) {
-                setError(`기록 조회 실패: ${err.message}`);
-            } finally {
-                setLoading(false);
-            }
+    // 합병증 이름 매핑
+    const getComplicationName = (key) => {
+        const names = {
+            pneumonia: '폐렴',
+            acute_kidney_injury: '급성 신장손상',
+            heart_failure: '심부전'
         };
+        return names[key] || key;
+    };
 
-        fetchHistory();
-    }, [selectedPatient]); // selectedPatient가 변경될 때마다 이 useEffect가 실행됩니다.
+    // 위험도별 색상 반환
+    const getRiskColor = (riskLevel) => {
+        switch (riskLevel?.toUpperCase()) {
+            case 'HIGH':
+            case 'CRITICAL':
+                return '#dc3545'; // 빨간색
+            case 'MEDIUM':
+                return '#ffc107'; // 노란색
+            case 'LOW':
+                return '#28a745'; // 녹색
+            default:
+                return '#6c757d'; // 회색
+        }
+    };
 
-    if (loading) return <p>과거 기록을 불러오는 중입니다...</p>;
-    if (error) return <p style={{ color: 'red' }}>{error}</p>;
+    // 위험도 텍스트 반환
+    const getRiskText = (riskLevel) => {
+        switch (riskLevel?.toUpperCase()) {
+            case 'HIGH':
+                return '높음';
+            case 'MEDIUM':
+                return '보통';
+            case 'LOW':
+                return '낮음';
+            case 'CRITICAL':
+                return '매우 높음';
+            default:
+                return '미정';
+        }
+    };
 
-    // --- JSX (기존과 동일) ---
+    // 위험도 설명 반환
+    const getRiskDescription = (riskLevel) => {
+        switch (riskLevel?.toUpperCase()) {
+            case 'HIGH':
+            case 'CRITICAL':
+                return '집중 모니터링 및 예방 조치 강화 권장';
+            case 'MEDIUM':
+                return '정기적 관찰 및 조기 개입 준비 필요';
+            case 'LOW':
+                return '표준 프로토콜에 따른 관리';
+            default:
+                return '추가 평가 필요';
+        }
+    };
+
+    // 전체적인 위험도 평가
+    const getOverallRiskAssessment = () => {
+        const results = Object.values(predictionData).filter(result => 
+            result && typeof result.probability !== 'undefined'
+        );
+        
+        if (results.length === 0) return null;
+
+        const highRiskCount = results.filter(r => r.risk_level?.toUpperCase() === 'HIGH' || r.risk_level?.toUpperCase() === 'CRITICAL').length;
+        const mediumRiskCount = results.filter(r => r.risk_level?.toUpperCase() === 'MEDIUM').length;
+
+        if (highRiskCount > 0) {
+            return {
+                level: 'HIGH',
+                message: `${highRiskCount}개의 고위험 합병증이 예측됩니다. 즉시 예방 조치를 고려해주세요.`,
+                color: '#dc3545'
+            };
+        } else if (mediumRiskCount > 0) {
+            return {
+                level: 'MEDIUM',
+                message: `${mediumRiskCount}개의 중등도 위험 합병증이 예측됩니다. 주의 깊은 관찰이 필요합니다.`,
+                color: '#ffc107'
+            };
+        } else {
+            return {
+                level: 'LOW',
+                message: '전반적으로 낮은 위험도로 예측됩니다. 표준 관리 프로토콜을 유지해주세요.',
+                color: '#28a745'
+            };
+        }
+    };
+
+    const overallAssessment = getOverallRiskAssessment();
+
     return (
-        <div style={{ border: '1px solid #ccc', padding: '20px', borderRadius: '8px', backgroundColor: 'white' }}>
-            <h4>합병증 및 투약 정보 과거 기록</h4>
-             <p><strong>대상 환자:</strong> {selectedPatient?.display || '환자를 선택해주세요'}</p>
-            {records.length === 0 ? (
-                <p>이 환자에 대한 기록이 없습니다.</p>
-            ) : (
-                <div style={{ maxHeight: '600px', overflowY: 'auto' }}>
-                    {records.map(record => (
-                        <div key={record.id} style={{ border: '1px solid #eee', padding: '15px', marginBottom: '10px', borderRadius: '5px' }}>
-                            {formatComplicationsRecord(record).map((item, index) => (
-                                <p key={index} style={{ margin: '5px 0' }}>
-                                    <strong>{item.label}:</strong> {item.value}
-                                </p>
-                            ))}
-                        </div>
-                    ))}
+        <div style={{ 
+            backgroundColor: 'white', 
+            border: '1px solid #ddd', 
+            borderRadius: '12px', 
+            padding: '20px',
+            fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+        }}>
+            {/* 헤더 */}
+            <div style={{ marginBottom: '20px', borderBottom: '2px solid #f0f0f0', paddingBottom: '15px' }}>
+                <h3 style={{ 
+                    margin: '0 0 8px 0', 
+                    color: '#333',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                }}>
+                    📊 AI 합병증 예측 결과
+                </h3>
+                {analysisTime && (
+                    <p style={{ 
+                        margin: '0', 
+                        fontSize: '14px', 
+                        color: '#666' 
+                    }}>
+                        분석 시간: {analysisTime}
+                    </p>
+                )}
+            </div>
+
+            {/* 전체 위험도 요약 */}
+            {overallAssessment && (
+                <div style={{ 
+                    backgroundColor: '#f8f9fa',
+                    border: `2px solid ${overallAssessment.color}`,
+                    borderRadius: '8px',
+                    padding: '15px',
+                    marginBottom: '20px'
+                }}>
+                    <h4 style={{ 
+                        margin: '0 0 8px 0', 
+                        color: overallAssessment.color,
+                        fontSize: '16px'
+                    }}>
+                        🎯 종합 위험도 평가
+                    </h4>
+                    <p style={{ 
+                        margin: '0', 
+                        color: '#333',
+                        fontSize: '14px'
+                    }}>
+                        {overallAssessment.message}
+                    </p>
                 </div>
             )}
+
+            {/* 개별 합병증 예측 결과 */}
+            <div style={{ 
+                display: 'grid', 
+                gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', 
+                gap: '20px', 
+                marginBottom: '20px' 
+            }}>
+                {Object.entries(predictionData).map(([key, result]) => {
+                    if (!result || typeof result.probability === 'undefined') return null;
+                    
+                    const probability = (result.probability * 100).toFixed(1);
+                    const riskColor = getRiskColor(result.risk_level);
+                    const riskText = getRiskText(result.risk_level);
+                    const riskDescription = getRiskDescription(result.risk_level);
+                    
+                    return (
+                        <div 
+                            key={key} 
+                            style={{ 
+                                backgroundColor: '#f8f9fa',
+                                border: `3px solid ${riskColor}`,
+                                borderRadius: '12px',
+                                padding: '20px',
+                                textAlign: 'center',
+                                transition: 'transform 0.2s ease',
+                                cursor: 'default'
+                            }}
+                            onMouseEnter={(e) => e.target.style.transform = 'translateY(-2px)'}
+                            onMouseLeave={(e) => e.target.style.transform = 'translateY(0)'}
+                        >
+                            {/* 합병증 이름 */}
+                            <h4 style={{ 
+                                margin: '0 0 12px 0', 
+                                color: '#333',
+                                fontSize: '18px'
+                            }}>
+                                {getComplicationName(key)}
+                            </h4>
+                            
+                            {/* 확률 */}
+                            <div style={{ 
+                                fontSize: '36px', 
+                                fontWeight: 'bold', 
+                                color: riskColor, 
+                                marginBottom: '10px',
+                                lineHeight: '1'
+                            }}>
+                                {probability}%
+                            </div>
+                            
+                            {/* 위험도 */}
+                            <div style={{ 
+                                fontSize: '16px', 
+                                color: riskColor, 
+                                fontWeight: 'bold', 
+                                marginBottom: '8px'
+                            }}>
+                                위험도: {riskText}
+                            </div>
+
+                            {/* 위험도 설명 */}
+                            <div style={{ 
+                                fontSize: '12px', 
+                                color: '#666',
+                                marginBottom: '10px',
+                                lineHeight: '1.4'
+                            }}>
+                                {riskDescription}
+                            </div>
+                            
+                            {/* 모델 신뢰도 */}
+                            {result.model_confidence && (
+                                <div style={{ 
+                                    fontSize: '12px', 
+                                    color: '#666',
+                                    borderTop: '1px solid #ddd',
+                                    paddingTop: '8px'
+                                }}>
+                                    모델 신뢰도: {(result.model_confidence * 100).toFixed(1)}%
+                                </div>
+                            )}
+
+                            {/* 모델 성능 정보 (있는 경우) */}
+                            {result.model_auc && (
+                                <div style={{ 
+                                    fontSize: '11px', 
+                                    color: '#888',
+                                    marginTop: '5px'
+                                }}>
+                                    AUC: {result.model_auc.toFixed(3)}
+                                </div>
+                            )}
+                        </div>
+                    );
+                })}
+            </div>
+
+            {/* 임상 가이드라인 */}
+            <div style={{ 
+                backgroundColor: '#e7f3ff', 
+                border: '1px solid #b8daff',
+                borderRadius: '8px',
+                padding: '15px'
+            }}>
+                <h4 style={{ 
+                    margin: '0 0 12px 0', 
+                    color: '#004085',
+                    fontSize: '16px'
+                }}>
+                    📋 임상 가이드라인
+                </h4>
+                
+                <div style={{ color: '#004085', fontSize: '14px', lineHeight: '1.6' }}>
+                    <div style={{ marginBottom: '8px' }}>
+                        <strong>🔴 높은 위험도 (HIGH):</strong> 즉시 예방 조치를 시행하고 집중 모니터링을 실시하세요.
+                    </div>
+                    <div style={{ marginBottom: '8px' }}>
+                        <strong>🟡 중간 위험도 (MEDIUM):</strong> 정기적인 관찰과 조기 개입 준비가 필요합니다.
+                    </div>
+                    <div style={{ marginBottom: '8px' }}>
+                        <strong>🟢 낮은 위험도 (LOW):</strong> 표준 프로토콜에 따른 관리를 유지하세요.
+                    </div>
+                </div>
+
+                <div style={{ 
+                    marginTop: '12px',
+                    fontSize: '12px', 
+                    color: '#004085',
+                    fontStyle: 'italic',
+                    borderTop: '1px solid #b8daff',
+                    paddingTop: '8px'
+                }}>
+                    ※ 본 AI 예측 결과는 의료진의 임상 판단을 보조하는 도구입니다. 
+                    최종 진료 결정은 환자의 전체적인 상태와 의료진의 종합적 판단에 따라 이루어져야 합니다.
+                </div>
+            </div>
         </div>
     );
 };
+
+export default ComplicationResult;

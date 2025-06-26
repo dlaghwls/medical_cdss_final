@@ -180,7 +180,7 @@ async def get_gene_results(patient_uuid: uuid.UUID, db: Session = Depends(get_db
     results = db.query(GeneAIResultSQL).filter(GeneAIResultSQL.patient_id == patient_uuid).order_by(GeneAIResultSQL.created_at).all()
     
     if not results:
-        return JSONResponse(content=[], status=200) # 결과가 없으면 빈 배열 반환
+        return JSONResponse(content=[], status_code=200) # 결과가 없으면 빈 배열 반환
 
     response_list = []
     for r in results:

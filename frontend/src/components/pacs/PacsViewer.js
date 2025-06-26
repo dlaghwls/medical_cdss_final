@@ -163,4 +163,5 @@ const PacsViewer = ({ selectedPatient, onSelectedPatientUpdated }) => {
     );
 };
 
+
 export default PacsViewer;

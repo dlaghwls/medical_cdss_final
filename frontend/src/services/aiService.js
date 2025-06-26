@@ -9,6 +9,8 @@ export const fastApiGeneClient = axios.create({
     baseURL: 'http://34.64.188.9:8002/', // FastAPI 서버의 실제 URL
 });
 
+const FASTAPI_GENE_API_BASE_URL = 'http://34.64.188.9:8002';
+
 const aiService = {
     /**
      * 합병증 예측을 위한 데이터를 백엔드로 전송합니다.
@@ -238,7 +240,7 @@ const aiService = {
             throw error;
         }
     },
-    
+
     /**
      * 특정 환자의 최신 유전자 분석 결과를 불러옵니다.
      * @param {string} patientUuid - 최신 결과를 조회할 환자의 UUID.

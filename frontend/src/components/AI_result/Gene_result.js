@@ -1,22 +1,22 @@
-// /home/shared/medical_cdss/frontend/src/components/AI_result/Gene_result.js (변경 없음)
 import React from 'react';
-
 const GeneResultDisplay = ({ result, selectedPatient }) => {
     if (!result) {
         return <p style={{ textAlign: 'center', color: '#555' }}>분석 결과가 아직 없습니다.</p>;
     }
 
+    // 예측 확률에 따른 시각적 피드백 로직 재설정
+    // "높을수록 뇌졸중일 확률이 높은 것으로 부정적" 기준 적용
     const getResultStatus = (probability) => {
-        if (probability >= 0.7) {
-            return { color: '#28a745', text: '긍정적 예측', icon: '✅' };
-        } else if (probability <= 0.3) {
-            return { color: '#dc3545', text: '부정적 예측', icon: '❌' };
-        } else {
-            return { color: '#ffc107', text: '보통', icon: 'ℹ️' };
+        if (probability >= 0.7) { // 70% 이상: 뇌졸중 확률 높음 (부정적)
+            return { color: '#dc3545', text: '뇌졸중 위험 높음', icon: '🚨' }; // 경고 아이콘
+        } else if (probability <= 0.3) { // 30% 이하: 뇌졸중 확률 낮음 (긍정적)
+            return { color: '#28a745', text: '뇌졸중 위험 낮음', icon: '👍' }; // 긍정 아이콘
+        } else { // 30% 초과 70% 미만: 중간 (관찰 필요)
+            return { color: '#ffc107', text: '관찰 필요', icon: '⚠️' }; // 주의 아이콘
         }
     };
 
-    const status = getResultStatus(result.prediction_probability); // prediction_probability 사용
+    const status = getResultStatus(result.prediction_probability);
 
     return (
         <div style={{ 
@@ -38,6 +38,7 @@ const GeneResultDisplay = ({ result, selectedPatient }) => {
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' }}>
+                {/* 예측 확률 카드 */}
                 <div style={{ 
                     border: `2px solid ${status.color}`, 
                     borderRadius: '8px', 
@@ -70,6 +71,7 @@ const GeneResultDisplay = ({ result, selectedPatient }) => {
                     </div>
                 </div>
 
+                {/* 모델 정보 카드 */}
                 <div style={{ 
                     border: '1px solid #e0e0e0', 
                     borderRadius: '8px', 
@@ -80,12 +82,16 @@ const GeneResultDisplay = ({ result, selectedPatient }) => {
                     flexDirection: 'column',
                     justifyContent: 'center'
                 }}>
-                    <p style={{ margin: '0 0 5px', fontSize: '0.9em', color: '#555' }}>모델 정보</p>
+                    <p style={{ margin: '0 0 5px', fontSize: '0.9em', color: '#555' }}>정보</p>
+                    {/* ⭐⭐ 결과 ID 대신 환자 이름/식별자 표시 ⭐⭐ */}
+                    <p style={{ margin: '5px 0' }}>
+                        <strong>분석 대상:</strong> {selectedPatient ? selectedPatient.display : '환자 정보 없음'}
+                    </p>
                     <p style={{ margin: '5px 0' }}><strong>모델 이름:</strong> {result.model_name || 'N/A'}</p>
                     <p style={{ margin: '5px 0' }}><strong>모델 버전:</strong> {result.model_version || 'N/A'}</p>
-                    <p style={{ margin: '5px 0' }}><strong>결과 ID:</strong> {result.gene_ai_result_id || 'N/A'}</p>
                 </div>
 
+                {/* 결과 메시지 카드 */}
                 <div style={{ 
                     border: '1px solid #e0e0e0', 
                     borderRadius: '8px', 

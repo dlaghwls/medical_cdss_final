@@ -10,12 +10,14 @@
     "@cornerstonejs/core": "^3.22.2",
     "@cornerstonejs/dicom-image-loader": "^3.22.2",
     "@cornerstonejs/tools": "^3.22.2",
+    "@cornerstonejs/wado-image-loader": "^2.1.2", 
     "@testing-library/dom": "^10.4.0",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.3.0",
     "@testing-library/user-event": "^13.5.0",
     "axios": "^1.9.0",
-    "chart.js": "^4.4.9",
+    "chart.js": "^4.5.0",
+    "chartjs-plugin-annotation": "^3.1.0",
     "http-proxy-middleware": "^3.0.5",
     "jwt-decode": "^4.0.0",
     "react": "^19.1.0",
@@ -23,8 +25,8 @@
     "react-dom": "^19.1.0",
     "react-router-dom": "^6.25.1",
     "react-scripts": "5.0.1",
-    "web-vitals": "^2.1.4",
-    "chartjs-plugin-annotation": "^1.0.2"
+    "recharts": "^3.0.0",
+    "web-vitals": "^2.1.4"
   },
   "scripts": {
     "start": "craco start",

@@ -20,7 +20,7 @@ const FunctionSidebar = ({ user, onMenuClick, style, activeView }) => {
     { id: 'ai_death_import', name: '생존 예측' },
     { id: 'ai_gene_import', name: '유전자 분석' },
     { id: 'ai_sod2_import', name: 'SOD2 평가' },
-    { id: 'segmentation', name: '영상 분할(준비중)' },
+    { id: 'segmentation_browser', name: '영상 분할' },
   ];
 
   // 역할별 기능 섹션은 더 이상 필요 없으므로 제거합니다.

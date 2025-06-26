@@ -8,7 +8,8 @@ from .views import (
     SeriesInstancesView,
     get_dicom_instance_data,  # <-- 새로운 뷰 함수 import
     NiftiUploadView, # 유정우넌할수있어
-    ListPatientSessionsView # 유정우넌할수있어
+    ListPatientSessionsView, # 유정우넌할수있어
+    NiftiToDicomView, # 유정우넌할수있어
 )
 
 urlpatterns = [
@@ -34,4 +35,6 @@ urlpatterns = [
     path('upload-nifti/', NiftiUploadView.as_view(), name='upload-nifti'),
     # 유정우넌할수있어 nnunet성공이후 추가
     path('patient-sessions/<str:patient_uuid>/', ListPatientSessionsView.as_view(), name='list-patient-sessions'),
+    # 유정우넌할수있어 nnunet성공이후 추가
+    path('view-nifti-as-dicom/', NiftiToDicomView.as_view(), name='view-nifti-as-dicom'),
 ]

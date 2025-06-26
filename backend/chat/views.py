@@ -7,7 +7,7 @@ from rest_framework import generics, serializers
 # ---
 
 from rest_framework.permissions import IsAuthenticated
-from django.db.models import Q
+from django.db.models import Count, Q 
 from .models import Message
 from .serializers import MessageSerializer, StaffSerializer
 from django.contrib.auth import get_user_model
@@ -57,31 +57,32 @@ class MedicalStaffListView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, *args, **kwargs):
-        print("\n" + "="*50)
-        print("--- [BACKEND] MedicalStaffListView 현장 검증 ---")
         current_user = request.user
-        print(f"[1] 현재 로그인한 사용자: {current_user.employee_id} (Role: {current_user.role})")
-
+        
         try:
             from .constants import STAFF_ROLES
-            print(f"[2] 검색할 의료진 역할(from constants.py): {STAFF_ROLES}")
         except ImportError:
             STAFF_ROLES = ['doctor', 'nurse', 'tec']
-            print(f"[2] 검색할 의료진 역할(임시 정의): {STAFF_ROLES}")
 
-        all_users = User.objects.all()
-        print(f"[3] DB에서 찾은 총 사용자 수: {all_users.count()}명")
-        for u in all_users:
-            print(f"    - ID: {u.employee_id}, 이름: {u.name}, 역할: {u.role}")
+        # 각 staff가 현재 로그인한 유저(current_user)에게 보낸, 
+        # 읽지 않은(is_read=False) 메시지의 개수를 계산하여 'unread_count'라는 이름으로 추가합니다.
+        staff_queryset = User.objects.filter(
+            role__in=STAFF_ROLES
+        ).annotate(
+            unread_count=Count('sent_messages_polling', filter=Q(
+                sent_messages_polling__receiver=current_user, 
+                sent_messages_polling__is_read=False
+            ))
+        ).exclude(
+            employee_id=current_user.employee_id
+        )
 
-        staff_queryset = User.objects.filter(role__in=STAFF_ROLES)
-        print(f"[4] '의료진 역할'로 필터링 후 사용자 수: {staff_queryset.count()}명")
-
-        final_queryset = staff_queryset.exclude(employee_id=current_user.employee_id)
-        print(f"[5] '자기 자신' 제외 후 최종 사용자 수: {final_queryset.count()}명")
-
-        print("--- [BACKEND] DEBUG END ---")
-        print("="*50 + "\n")
-
-        serializer = StaffSerializer(final_queryset, many=True)
+        serializer = StaffSerializer(staff_queryset, many=True)
         return Response(serializer.data)
+        
+class UnreadCountView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        unread_count = Message.objects.filter(receiver=request.user, is_read=False).count()
+        return Response({'unread_count': unread_count})

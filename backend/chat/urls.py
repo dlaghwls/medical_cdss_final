@@ -1,7 +1,7 @@
 # medical_cdss-happy/backend/medical_cdss/chat/urls.py
 
 from django.urls import path
-from .views import MessageListCreateView, MedicalStaffListView
+from .views import MessageListCreateView, MedicalStaffListView, UnreadCountView
 
 app_name = 'chat'
 
@@ -12,5 +12,6 @@ urlpatterns = [
     # 특정 상대방과의 메시지 목록 조회 (GET) 및 생성 (POST)
     # URL에 상대방의 employee_id를 받습니다.
     # 예: /api/chat/messages/DOC-0002/
+    path('unread-count/', UnreadCountView.as_view(), name='unread-count'),
     path('messages/<str:other_user_id>/', MessageListCreateView.as_view(), name='message-list-create'),
 ]

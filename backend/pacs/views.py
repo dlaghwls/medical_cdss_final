@@ -25,6 +25,9 @@ from pydicom.dataset import FileDataset, FileMetaDataset # 유정우넌할수있
 from pydicom.uid import ExplicitVRLittleEndian, generate_uid # 유정우넌할수있어
 from datetime import datetime # 유정우넌할수있어
 from ai_segmentation_service.segmentation_flow import process_nifti_segmentation # 유정우넌할수있어
+from collections import defaultdict # 유정우넌할수있어 nnunet성공이후추가
+import shutil # 유정우넌할수있어 nnunet성공이후추가
+import numpy as np # 유정우넌할수있어 nnunet성공이후추가
 logger = logging.getLogger(__name__)
 ORTHANC_AUTH = (settings.ORTHANC_USERNAME, settings.ORTHANC_PASSWORD)
 
@@ -659,47 +662,138 @@ class NiftiUploadView(APIView):
 
 ####### 유정우넌할수있어 nnunet성공이후 추가 ###########
 class ListPatientSessionsView(APIView):
-    """
-    특정 환자의 모든 업로드 세션과 파일 목록을 GCS에서 조회합니다.
-    """
+    """특정 환자의 모든 업로드 세션과 파일 목록을 GCS에서 조회합니다."""
     def get(self, request, patient_uuid, *args, **kwargs):
         logger.info(f"GCS 파일 목록 조회 시작. 환자 UUID: {patient_uuid}")
         try:
             storage_client = storage.Client()
-            bucket = storage_client.bucket("final_model_data1") # GCS 버킷 이름
-
+            bucket = storage_client.bucket("final_model_data1")
             prefix = f"nifti/{patient_uuid}/"
             blobs = bucket.list_blobs(prefix=prefix)
-
             sessions_data = defaultdict(lambda: defaultdict(list))
-            
             for blob in blobs:
                 parts = blob.name.split('/')
                 if len(parts) >= 5 and parts[-1]:
-                    session_id = parts[2]
-                    modality = parts[3]
-                    file_name = parts[4]
-                    
+                    session_id, modality, file_name = parts[2], parts[3], parts[4]
                     sessions_data[session_id][modality].append({
                         "name": file_name,
                         "gcs_path": f"gs://{bucket.name}/{blob.name}",
                         "viewer_url": f"/orthanc/viewer/{patient_uuid}/{session_id}/{modality}" 
                     })
-
-            if not sessions_data:
-                logger.warning(f"환자 {patient_uuid}에 대한 GCS 파일이 없습니다.")
-                return Response([])
-
-            formatted_sessions = [
-                {"sessionId": session_id, "modalities": modalities}
-                for session_id, modalities in sessions_data.items()
-            ]
-            
+            if not sessions_data: return Response([])
+            formatted_sessions = [{"sessionId": sid, "modalities": mods} for sid, mods in sessions_data.items()]
             sorted_sessions = sorted(formatted_sessions, key=lambda s: s['sessionId'], reverse=True)
-
             logger.info(f"환자 {patient_uuid}에 대한 {len(sorted_sessions)}개의 세션을 찾았습니다.")
             return Response(sorted_sessions)
-
         except Exception as e:
             logger.error(f"GCS 파일 목록 조회 중 오류 발생: {e}", exc_info=True)
             return Response({"error": "서버에서 파일 목록을 가져오는 중 오류가 발생했습니다."}, status=500)
+
+
+class NiftiToDicomView(APIView):
+    """GCS 경로의 NIfTI 파일을 실시간으로 DICOM으로 변환하고 Orthanc에 업로드합니다."""
+    def post(self, request, *args, **kwargs):
+        gcs_path = request.data.get('gcs_path')
+        patient_uuid = request.data.get('patient_uuid')
+
+        if not gcs_path or not patient_uuid:
+            return Response({"error": "gcs_path와 patient_uuid가 필요합니다."}, status=status.HTTP_400_BAD_REQUEST)
+
+        logger.info(f"NIfTI -> DICOM 변환 요청 시작: {gcs_path}")
+
+        safe_temp_dir = os.path.join(settings.BASE_DIR, 'temp_files')
+        os.makedirs(safe_temp_dir, exist_ok=True)
+
+        temp_nifti_path = os.path.join(safe_temp_dir, f"{uuid.uuid4()}.nii.gz")
+        temp_dicom_dir = tempfile.mkdtemp(dir=safe_temp_dir)
+        
+        try:
+            # 1. GCS에서 NIfTI 파일 다운로드
+            storage_client = storage.Client()
+            bucket_name, blob_name = gcs_path.replace("gs://", "").split("/", 1)
+            bucket = storage_client.bucket(bucket_name)
+            bucket.blob(blob_name).download_to_filename(temp_nifti_path)
+            logger.info(f"임시 파일 다운로드 완료: {temp_nifti_path}")
+
+            # 2. NIfTI 로드 및 DICOM 메타데이터 준비
+            nifti_img = nib.load(temp_nifti_path)
+            img_data = nifti_img.get_fdata()
+            study_uid = pydicom.uid.generate_uid()
+            series_uid = pydicom.uid.generate_uid()
+            orthanc_instance_ids = []
+
+            for i in range(img_data.shape[2]): # 각 슬라이스에 대해
+                slice_data = img_data[:, :, i]
+                
+                # [수정] 픽셀 데이터 정규화 (ZeroDivisionError 방지)
+                slice_max = slice_data.max()
+                if slice_max > 0:
+                    normalized_slice = (slice_data / slice_max * 4095).astype(np.uint16)
+                else:
+                    normalized_slice = slice_data.astype(np.uint16)
+
+                # [수정] DICOM 파일 및 메타데이터 생성 방식 개선
+                file_meta = FileMetaDataset()
+                file_meta.MediaStorageSOPClassUID = pydicom.uid.MRImageStorage
+                file_meta.MediaStorageSOPInstanceUID = pydicom.uid.generate_uid()
+                file_meta.TransferSyntaxUID = pydicom.uid.ExplicitVRLittleEndian
+                file_meta.ImplementationClassUID = pydicom.uid.generate_uid()
+
+                ds = FileDataset(f"slice_{i}.dcm", {}, file_meta=file_meta, preamble=b"\0" * 128)
+                
+                # 필수 태그 채우기
+                ds.PatientID = patient_uuid
+                ds.PatientName = "Test^Patient" # TODO: 실제 환자 이름으로 교체
+                ds.StudyInstanceUID = study_uid
+                ds.SeriesInstanceUID = series_uid
+                ds.SOPInstanceUID = file_meta.MediaStorageSOPInstanceUID
+                ds.SOPClassUID = file_meta.MediaStorageSOPClassUID
+                ds.Modality = "MR"
+                ds.InstanceNumber = str(i + 1)
+                
+                ds.Rows, ds.Columns = normalized_slice.shape
+                ds.PixelData = normalized_slice.tobytes()
+                ds.BitsAllocated = 16
+                ds.BitsStored = 12 # 0-4095 범위에 맞춤
+                ds.HighBit = 11
+                ds.PixelRepresentation = 0
+                ds.PhotometricInterpretation = "MONOCHROME2"
+                ds.SamplesPerPixel = 1
+                
+                temp_dcm_path = os.path.join(temp_dicom_dir, f"slice_{i}.dcm")
+                ds.save_as(temp_dcm_path, write_like_original=False)
+
+                # 3. Orthanc에 업로드
+                with open(temp_dcm_path, 'rb') as f:
+                    # [수정] 미리 정의된 ORTHANC_AUTH 사용
+                    resp = requests.post(f"{settings.ORTHANC_URL}/instances", data=f.read(), auth=ORTHANC_AUTH)
+                    resp.raise_for_status()
+                    orthanc_instance_ids.append(resp.json()['ID'])
+            
+            logger.info(f"{len(orthanc_instance_ids)}개의 DICOM 슬라이스 업로드 완료. Series UID: {series_uid}")
+
+            image_ids = []
+            for instance_uuid in orthanc_instance_ids:
+                # 이 프록시 URL은 get_dicom_instance_data 함수와 연결됩니다.
+                dicom_data_proxy_url = request.build_absolute_uri(
+                    f'/api/pacs/dicom-instance-data/{instance_uuid}/'
+                )
+                wadouri_url = f"wadouri:{dicom_data_proxy_url}"
+                image_ids.append(wadouri_url)
+
+            # 4. 뷰어에 필요한 정보 반환
+            return Response({
+                "studyInstanceUID": study_uid,
+                "seriesInstanceUID": series_uid,
+                "imageIds": image_ids
+            }, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            logger.error(f"NIfTI->DICOM 변환/업로드 중 오류 발생: {e}", exc_info=True)
+            return Response({"error": "DICOM 변환 중 서버에서 오류가 발생했습니다."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        finally:
+            # 임시 파일 및 폴더 정리
+            if os.path.exists(temp_nifti_path):
+                os.remove(temp_nifti_path)
+            if os.path.exists(temp_dicom_dir):
+                shutil.rmtree(temp_dicom_dir)

@@ -4,6 +4,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.views import APIView
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from io import StringIO
 # from django.http import JsonResponse # 필요하지 않을 수 있으므로 주석 처리
 
@@ -93,7 +94,7 @@ def save_predictions_data(request, patient_uuid):
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
 
-# ====== SOD2 관련 API (새로 추가된 부분) ======
+# ====== SOD2 관련 API (기존 유지) ======
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
@@ -173,7 +174,7 @@ def assess_sod2_status(request):
         if current_sod2_level >= 0.9:  # 90% 이상
             monitoring_text = "주간 SOD2 수준 확인"
         elif current_sod2_level >= 0.85:  # 85-89%
-            monitoring_text = "예일 SOD2 수준 확인"
+            monitoring_text = "격일 SOD2 수준 확인"
         elif current_sod2_level >= 0.7:  # 70-84%
             monitoring_text = "48시간 후 재평가"
         elif current_sod2_level >= 0.5:  # 50-69%
@@ -360,8 +361,6 @@ def get_latest_sod2_assessment(request, patient_uuid):
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
 
-# ====== 기존 API들 (계속) ======
-
 @api_view(['GET', 'POST'])
 @permission_classes([AllowAny])
 def sod2_analysis(request, patient_uuid):
@@ -421,22 +420,6 @@ def sod2_analysis(request, patient_uuid):
                 data['stroke_info']['stroke_date'] = data.get('stroke_date')
                 data['stroke_info']['hours_after_stroke'] = data.get('hours_after_stroke')
             
-            # assess_sod2_status 호출 (request 객체를 새로 생성하여 전달)
-            # request._request는 원래 HttpRequest 객체입니다.
-            # DRF Request 객체를 새로 만들려면 Request(request._request, ...)와 같이 해야 하지만
-            # 여기서는 단순히 데이터를 전달하는 것이므로, 뷰 함수를 직접 호출하는 방식 대신
-            # DRF Request 객체가 뷰 체인을 통해 자연스럽게 전달되도록 하는 것이 좋습니다.
-            # 이 부분은 프론트엔드에서 assess_sod2_status를 직접 호출하는 방식으로 변경되어야 합니다.
-            # 하지만 임시 호환성을 위해 아래와 같이 DRF Request 객체를 인자로 전달하는 방식으로 수정합니다.
-            from rest_framework.request import Request
-            from rest_framework.parsers import JSONParser
-            from io import BytesIO
-
-            # 원본 request._request (HttpRequest)를 기반으로 새로운 DRF Request 객체 생성
-            # POST 요청 데이터는 request.data에 이미 파싱되어 있으므로, 이를 직접 사용
-            # 하지만 DRF Request 객체는 request._request (HttpRequest)가 필요합니다.
-            # 이 상황은 복잡하므로, predict_complications와 동일하게 ml_service를 직접 호출하는 방식으로 변경하겠습니다.
-
             # ⭐⭐⭐ 중요한 변경: sod2_analysis (POST)는 이제 ml_service를 직접 호출합니다. ⭐⭐⭐
             try:
                 # 필요한 데이터 추출 및 가공
@@ -474,6 +457,20 @@ def sod2_analysis(request, patient_uuid):
                     except ValueError:
                         logger.warning(f"날짜 형식 오류: {stroke_date_str}")
                 
+                # ===== SOD2 수준에 따른 동적 모니터링 일정 =====
+                current_sod2_level = assessment_result['sod2_status']['current_level']
+                
+                if current_sod2_level >= 0.9:  # 90% 이상
+                    monitoring_text = "주간 SOD2 수준 확인"
+                elif current_sod2_level >= 0.85:  # 85-89%
+                    monitoring_text = "격일 SOD2 수준 확인"
+                elif current_sod2_level >= 0.7:  # 70-84%
+                    monitoring_text = "48시간 후 재평가"
+                elif current_sod2_level >= 0.5:  # 50-69%
+                    monitoring_text = "24시간 후 재평가"
+                else:  # 50% 미만
+                    monitoring_text = "12시간 후 재평가"
+                
                 sod2_assessment = SOD2Analysis.objects.create(
                     task=prediction_task,
                     age=assessment_result['patient_info']['age'],
@@ -497,8 +494,8 @@ def sod2_analysis(request, patient_uuid):
                     nihss_adjustment=assessment_result['personalization_factors']['nihss_adjustment'],
                     reperfusion_timing_adjustment=assessment_result['personalization_factors'].get('reperfusion_timing_adjustment', 1.0),
                     clinical_recommendations='\n'.join(assessment_result['clinical_recommendations']),
-                    exercise_recommendations=assessment_result['exercise_recommendations']['monitoring_schedule'],
-                    monitoring_schedule=assessment_result['exercise_recommendations']['monitoring_schedule']
+                    exercise_recommendations=assessment_result['exercise_recommendations'],
+                    monitoring_schedule={'text': monitoring_text}  # ★★★ 이제 monitoring_text가 정의됨 ★★★
                 )
                 
                 logger.info(f"SOD2 분석 및 평가 완료 - 환자: {patient.display_name}, 평가 ID: {sod2_assessment.id}")
@@ -649,9 +646,9 @@ def get_prediction_results(request, patient_uuid):
         
         # 최신 예측 결과들 가져오기 - 모델 관계 확인 필요
         complications_prediction = ComplicationPrediction.objects.filter(
-            patient=patient, # patient 필터링 추가
-            prediction_type='complications'
-        ).order_by('-created_at').first()
+            task__patient=patient, # task__patient로 필터링
+            complication_type='complications'
+        ).order_by('-task__created_at').first()
         
         sod2_analysis = SOD2Analysis.objects.filter(
             task__patient=patient, # task__patient로 필터링
@@ -666,7 +663,7 @@ def get_prediction_results(request, patient_uuid):
         }
         
         if complications_prediction:
-            results = complications_prediction.predictions # predictions 필드 사용
+            results = complications_prediction.task.predictions # predictions 필드 사용
             chart_data['complications'] = {
                 'pneumonia': results.get('pneumonia', {}).get('probability', 0),
                 'acute_kidney_injury': results.get('acute_kidney_injury', {}).get('probability', 0),
@@ -688,7 +685,7 @@ def get_prediction_results(request, patient_uuid):
         return Response({
             'patient_uuid': str(patient.uuid),
             'chart_data': chart_data,
-            'last_updated': complications_prediction.created_at.isoformat() if complications_prediction and complications_prediction.created_at else None
+            'last_updated': complications_prediction.task.created_at.isoformat() if complications_prediction and complications_prediction.task.created_at else None
         })
         
     except Exception as e:
@@ -698,265 +695,410 @@ def get_prediction_results(request, patient_uuid):
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
 
-# 기존 API와의 호환성을 위한 엔드포인트들
-# ⭐⭐ predict_complications 뷰를 직접 예측을 수행하고 저장하도록 수정 ⭐⭐
+# ============= 합병증 예측 API (수정된 버전) =============
+
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def predict_complications(request):
-    """
-    합병증 예측 API.
-    요청 데이터를 받아 ml_service로 전달하고 결과를 반환하며, PredictionTask에 저장합니다.
-    """
-    try:
-        prediction_input_data = request.data
-        patient_uuid = prediction_input_data.get('patient_uuid')
-
-        if not patient_uuid:
-            logger.error("합병증 예측 요청에 patient_uuid가 없습니다.")
-            return Response(
-                {'error': '합병증 예측을 위해서는 환자 UUID가 필요합니다.'}, 
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        # 환자 인스턴스 가져오기 (PredictionTask 저장을 위해)
-        patient_instance = get_object_or_404(OpenMRSPatient, uuid=patient_uuid)
-        
-        logger.info(f"합병증 예측 요청 수신 (환자: {patient_uuid})")
-        
-        # ml_service.py의 predict_complications 함수 호출 (실제 ML 모델 호출)
-        prediction_results = ml_service.predict_complications(prediction_input_data)
-        
-        # 예측 결과를 PredictionTask에 저장
-        task = PredictionTask.objects.create(
-            task_id=uuid.uuid4(),
-            patient=patient_instance,
-            task_type='COMPLICATION_PREDICTION',
-            status='COMPLETED',
-            input_data=prediction_input_data,
-            predictions=prediction_results,
-        )
-        
-        # ComplicationPrediction 모델에 저장 (실제 필드에 맞춰 수정)
-        ComplicationPrediction.objects.create(
-            task=task,
-            complication_type=prediction_results.get('complication_type', 'general'),
-            probability=prediction_results.get('probability', 0.0),
-            risk_level=prediction_results.get('risk_level', 'LOW'),
-            threshold=prediction_results.get('threshold', 0.5),
-            model_auc=prediction_results.get('model_auc', 0.0),
-            model_precision=prediction_results.get('model_precision', 0.0),
-            model_recall=prediction_results.get('model_recall', 0.0),
-            model_f1=prediction_results.get('model_f1', 0.0),
-            model_type=prediction_results.get('model_type', 'unknown'),
-            model_strategy=prediction_results.get('model_strategy', 'default'),
-            important_features=prediction_results.get('important_features', {})
-        )
-        
-        logger.info(f"합병증 예측 완료 및 저장 - 환자: {patient_uuid}, Task ID: {task.task_id}")
-        
-        return Response(prediction_results, status=status.HTTP_200_OK)
-        
-    except OpenMRSPatient.DoesNotExist:
-        logger.error(f"합병증 예측 실패: 환자 UUID {patient_uuid}를 찾을 수 없습니다.", exc_info=True)
-        return Response(
-            {'error': f'예측을 위한 환자 UUID를 찾을 수 없습니다: {patient_uuid}'},
-            status=status.HTTP_404_NOT_FOUND
-        )
-    except Exception as e:
-        logger.error(f"합병증 예측 실패: {e}", exc_info=True)
-        return Response(
-            {'error': f'합병증 예측 처리 중 오류가 발생했습니다: {str(e)}'}, 
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR
-        )
-
-@api_view(['POST'])
-@permission_classes([AllowAny])
-def predict_stroke_mortality(request):
-    """
-    뇌졸중 사망률 예측 API (기존 API 호환성 유지).
-    요청 데이터를 받아 ml_service로 전달하고 결과를 반환합니다.
-    """
-    try:
-        patient_uuid = request.data.get('patient_uuid')
-        patient_instance = None
-        if patient_uuid:
-            patient_instance = get_object_or_404(OpenMRSPatient, uuid=patient_uuid)
-
-        # ml_service.py의 predict_stroke_mortality 함수 호출
-        mortality_results = ml_service.predict_stroke_mortality(request.data)
-
-        # 필요하다면 PredictionTask에 결과 저장
-        if patient_instance:
-            PredictionTask.objects.create(
-                task_id=uuid.uuid4(),
-                patient=patient_instance,
-                task_type='MORTALITY_PREDICTION',
-                status='COMPLETED',
-                input_data=request.data,
-                predictions=mortality_results,
-                # created_by=request.user if request.user.is_authenticated else None # ⭐ created_by 인자 제거
-            )
-
-        return Response(mortality_results, status=status.HTTP_200_OK)
-    
-    except OpenMRSPatient.DoesNotExist:
-        logger.error(f"사망률 예측 실패: 환자 UUID {patient_uuid}를 찾을 수 없습니다.", exc_info=True)
-        return Response(
-            {'error': f'예측을 위한 환자 UUID를 찾을 수 없습니다: {patient_uuid}'},
-            status=status.HTTP_404_NOT_FOUND
-        )
-    except Exception as e:
-        logger.error(f"사망률 예측 실패: {e}", exc_info=True)
-        return Response(
-            {'error': f'사망률 예측 처리 중 오류가 발생했습니다: {str(e)}'}, 
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR
-        )
-
-# ====== 새로 추가: 30일 사망률 예측 API ======
-
-@api_view(['POST'])
-@permission_classes([AllowAny])
-def predict_mortality(request):
-    """30일 사망률 예측 API - 새로운 전용 모델 사용"""
+    """합병증 예측 API - 실제 ML 모델 사용"""
     try:
         data = request.data
         patient_uuid = data.get('patient_uuid')
         
         if not patient_uuid:
-            logger.error("사망률 예측 요청에 patient_uuid가 없습니다.")
             return Response(
-                {'error': '사망률 예측을 위해서는 환자 UUID가 필요합니다.'}, 
+                {'error': '환자 UUID가 필요합니다.'}, 
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        # 환자 인스턴스 가져오기
-        patient_instance = get_object_or_404(OpenMRSPatient, uuid=patient_uuid)
+        # 환자 조회
+        patient = get_object_or_404(OpenMRSPatient, uuid=patient_uuid)
         
-        logger.info(f"사망률 예측 요청 수신 (환자: {patient_uuid})")
+        logger.info(f"합병증 예측 시작 - 환자: {patient.display_name}")
         
-        # 모델 로드 (joblib 우선, pickle 백업)
-        model = load_ml_model('stroke_mortality_30day')
+        # ML 서비스를 통한 예측 실행
+        prediction_results = ml_service.predict_complications(data)
         
-        # 입력 데이터 준비 (모델이 기대하는 33개 피처 순서대로)
-        features = [
-            'admission_type', 'age_at_admission', 'gender_M', 'admit_year', 'admit_month', 'admit_day',
-            'charlson_score', 'BUN_chart_mean', 'CK_lab_mean', 'CRP_chart_mean', 'CRP_lab_mean',
-            'Creatinine_chart_mean', 'Creatinine_lab_mean', 'DBP_art_mean', 'GCS_mean',
-            'NIBP_dias_mean', 'NIBP_mean_mean', 'NIBP_sys_mean', 'RespRate_mean', 'SBP_art_mean',
-            'BUN_chart_max', 'CK_lab_max', 'CRP_chart_max', 'CRP_lab_max', 'Creatinine_chart_max',
-            'Creatinine_lab_max', 'DBP_art_max', 'GCS_max', 'NIBP_dias_max', 'NIBP_mean_max',
-            'NIBP_sys_max', 'RespRate_max', 'SBP_art_max'
-        ]
-        
-        # 피처 검증
-        validate_model_features(model, features)
-        
-        # 입력 배열 생성
-        input_array = []
-        for feature in features:
-            value = data.get(feature, 0)
-            try:
-                input_array.append(float(value))
-            except (ValueError, TypeError):
-                logger.warning(f"잘못된 피처 값: {feature}={value}, 기본값 0 사용")
-                input_array.append(0.0)
-        
-        # 예측 수행
-        input_data = np.array([input_array])
-        
-        # VotingClassifier는 predict_proba 지원
-        if hasattr(model, 'predict_proba'):
-            mortality_proba = model.predict_proba(input_data)[0]
-            mortality_probability = float(mortality_proba[1])  # 사망 확률
-            survival_probability = float(mortality_proba[0])   # 생존 확률
-        else:
-            # predict만 가능한 경우 (예: 회귀 모델)
-            prediction = model.predict(input_data)[0]
-            mortality_probability = float(prediction)
-            survival_probability = 1.0 - mortality_probability
-        
-        # 예측 클래스
-        mortality_prediction = model.predict(input_data)[0]
-        
-        # 위험도 분류
-        if mortality_probability >= 0.5:
-            risk_level = "HIGH"
-        elif mortality_probability >= 0.2:
-            risk_level = "MEDIUM"
-        else:
-            risk_level = "LOW"
-        
-        # 모델 신뢰도 (확률의 차이로 계산)
-        if hasattr(model, 'predict_proba'):
-            confidence = float(abs(mortality_proba[1] - mortality_proba[0]))
-        else:
-            confidence = 0.8  # 기본값
-        
-        # 결과를 프론트엔드가 기대하는 형태로 구성
-        frontend_result = {
-            "mortality_probability": mortality_probability,
-            "survival_probability": survival_probability,
-            "risk_level": risk_level,
-            "predicted_outcome": int(mortality_prediction),  # 0=생존, 1=사망
-            "model_confidence": confidence,
-            "predicted_at": datetime.now().isoformat(),
-            "model_version": "v1.0",
-            "model_type": type(model).__name__
-        }
-        
-        # 예측 결과를 PredictionTask와 StrokeMortalityPrediction에 저장
+        # PredictionTask 생성
         task = PredictionTask.objects.create(
-            task_id=uuid.uuid4(),
-            patient=patient_instance,
-            task_type='MORTALITY_PREDICTION_30DAY',
+            patient=patient,
+            task_type='COMPLICATION',
             status='COMPLETED',
             input_data=data,
-            predictions=frontend_result,
+            predictions=prediction_results,
+            processing_time=prediction_results.get('processing_time', 0),
+            requested_by=request.user if request.user.is_authenticated else None
         )
         
-        # StrokeMortalityPrediction 모델에 저장 (실제 필드에 맞춰 수정)
-        StrokeMortalityPrediction.objects.create(
-            task=task,
-            mortality_30_day=mortality_probability,
-            mortality_30_day_risk_level=risk_level,
-            mortality_in_hospital=frontend_result.get('mortality_in_hospital', 0.0),
-            mortality_90_day=frontend_result.get('mortality_90_day', 0.0),
-            mortality_1_year=frontend_result.get('mortality_1_year', 0.0),
-            stroke_type=data.get('stroke_type', 'unknown'),
-            nihss_score=data.get('nihss_score', 0),
-            reperfusion_treatment=data.get('reperfusion_treatment', False),
-            reperfusion_time=data.get('reperfusion_time', 0.0),
-            risk_factors=data.get('risk_factors', {}),
-            protective_factors=data.get('protective_factors', {}),
-            model_confidence=confidence,
-            model_auc=data.get('model_auc', 0.0),
-            clinical_recommendations=f"30일 사망률 {mortality_probability:.1%}, 위험도 {risk_level}",
-            monitoring_priority=risk_level
-        )
+        # 각 합병증별로 ComplicationPrediction 레코드 생성
+        complications = ['pneumonia', 'acute_kidney_injury', 'heart_failure']
+        created_predictions = []
         
-        logger.info(f"사망률 예측 완료 및 저장 - 확률: {mortality_probability:.3f}, 위험도: {risk_level}")
-        return Response(frontend_result, status=status.HTTP_200_OK)
+        for comp in complications:
+            if comp in prediction_results:
+                comp_result = prediction_results[comp]
+                
+                # ComplicationPrediction 생성
+                comp_prediction = ComplicationPrediction.objects.create(
+                    task=task,
+                    complication_type=comp,
+                    probability=comp_result.get('probability', 0),
+                    risk_level=comp_result.get('risk_level', 'LOW'),
+                    threshold=comp_result.get('threshold', 0.5),
+                    model_auc=comp_result.get('model_performance', {}).get('auc', 0),
+                    model_precision=comp_result.get('model_performance', {}).get('precision', 0),
+                    model_recall=comp_result.get('model_performance', {}).get('recall', 0),
+                    model_f1=comp_result.get('model_performance', {}).get('f1', 0),
+                    model_type=comp_result.get('model_performance', {}).get('type', 'ensemble'),
+                    model_strategy=comp_result.get('model_performance', {}).get('strategy', 'supervised'),
+                    important_features={}  # 추후 기능 중요도 추가 가능
+                )
+                created_predictions.append(comp_prediction)
         
-    except FileNotFoundError as e:
-        logger.error(f"사망률 예측 모델 파일을 찾을 수 없습니다: {str(e)}")
-        return Response({
-            'error': 'MODEL_NOT_FOUND',
-            'message': '사망률 예측 모델을 로드할 수 없습니다.'
-        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        logger.info(f"합병증 예측 완료 - Task ID: {task.task_id}")
         
-    except ValueError as e:
-        logger.error(f"사망률 예측 입력 데이터 오류: {str(e)}")
-        return Response({
-            'error': 'INVALID_INPUT',
-            'message': f'입력 데이터가 올바르지 않습니다: {str(e)}'
-        }, status=status.HTTP_400_BAD_REQUEST)
+        # 응답 데이터 구성
+        response_data = {
+            'task_id': str(task.task_id),
+            'patient_uuid': str(patient.uuid),
+            'predictions': prediction_results,
+            'created_at': task.created_at.isoformat(),
+            'model_used': prediction_results.get('model_used', False)
+        }
+        
+        return Response(response_data, status=status.HTTP_200_OK)
         
     except Exception as e:
-        logger.error(f"사망률 예측 오류: {str(e)}", exc_info=True)
+        logger.error(f"합병증 예측 중 오류: {e}", exc_info=True)
+        return Response(
+            {'error': f'합병증 예측 중 오류가 발생했습니다: {str(e)}'}, 
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+# ============= 사망률 예측 API (수정된 버전) =============
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def predict_mortality(request):
+    """사망률 예측 API - 실제 ML 모델 사용"""
+    try:
+        data = request.data
+        patient_uuid = data.get('patient_uuid')
+        
+        if not patient_uuid:
+            return Response(
+                {'error': '환자 UUID가 필요합니다.'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # 환자 조회
+        patient = get_object_or_404(OpenMRSPatient, uuid=patient_uuid)
+        
+        logger.info(f"사망률 예측 시작 - 환자: {patient.display_name}")
+        
+        # ML 서비스를 통한 예측 실행
+        mortality_results = ml_service.predict_mortality(data)
+        
+        # PredictionTask 생성
+        task = PredictionTask.objects.create(
+            patient=patient,
+            task_type='MORTALITY',
+            status='COMPLETED',
+            input_data=data,
+            predictions=mortality_results,
+            processing_time=mortality_results.get('processing_time', 0),
+            requested_by=request.user if request.user.is_authenticated else None
+        )
+        
+        # StrokeMortalityPrediction 생성
+        mortality_prediction = StrokeMortalityPrediction.objects.create(
+            task=task,
+            mortality_30_day=mortality_results.get('mortality_30_day', 0),
+            mortality_30_day_risk_level=mortality_results.get('risk_level', 'LOW'),
+            mortality_in_hospital=mortality_results.get('mortality_in_hospital'),
+            mortality_90_day=mortality_results.get('mortality_90_day'),
+            mortality_1_year=mortality_results.get('mortality_1_year'),
+            stroke_type=data.get('stroke_type', 'unknown'),
+            nihss_score=data.get('nihss_score'),
+            reperfusion_treatment=data.get('reperfusion_treatment', False),
+            reperfusion_time=data.get('reperfusion_time'),
+            risk_factors=mortality_results.get('risk_factors', []),
+            protective_factors=mortality_results.get('protective_factors', []),
+            model_confidence=mortality_results.get('confidence', 0),
+            model_auc=mortality_results.get('model_performance', {}).get('auc', 0),
+            clinical_recommendations='; '.join(mortality_results.get('clinical_recommendations', [])),
+            monitoring_priority=mortality_results.get('risk_level', 'LOW')
+        )
+        
+        logger.info(f"사망률 예측 완료 - Task ID: {task.task_id}, 확률: {mortality_results.get('mortality_30_day', 0):.3f}")
+        
+        # 응답 데이터 구성
+        response_data = {
+            'task_id': str(task.task_id),
+            'patient_uuid': str(patient.uuid),
+            'mortality_30_day': mortality_results.get('mortality_30_day', 0),
+            'risk_level': mortality_results.get('risk_level', 'LOW'),
+            'confidence': mortality_results.get('confidence', 0),
+            'risk_factors': mortality_results.get('risk_factors', []),
+            'protective_factors': mortality_results.get('protective_factors', []),
+            'clinical_recommendations': mortality_results.get('clinical_recommendations', []),
+            'model_performance': mortality_results.get('model_performance', {}),
+            'created_at': task.created_at.isoformat(),
+            'model_used': mortality_results.get('model_used', False)
+        }
+        
+        return Response(response_data, status=status.HTTP_200_OK)
+        
+    except Exception as e:
+        logger.error(f"사망률 예측 중 오류: {e}", exc_info=True)
+        return Response(
+            {'error': f'사망률 예측 중 오류가 발생했습니다: {str(e)}'}, 
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+# ============= 데이터 등록 API (새로 추가) =============
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def register_complications_data(request):
+    """합병증 및 투약 정보 등록 API"""
+    try:
+        data = request.data
+        patient_uuid = data.get('patient_uuid') or data.get('patient')
+        
+        if not patient_uuid:
+            return Response(
+                {'error': '환자 UUID가 필요합니다.'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # 환자 조회
+        patient = get_object_or_404(OpenMRSPatient, uuid=patient_uuid)
+        
+        logger.info(f"합병증 데이터 등록 - 환자: {patient.display_name}")
+        
+        # 데이터 검증
+        complications = data.get('complications', {})
+        medications = data.get('medications', {})
+        recorded_at = data.get('recorded_at')
+        
+        if recorded_at:
+            try:
+                recorded_datetime = datetime.fromisoformat(recorded_at.replace('Z', '+00:00'))
+            except:
+                recorded_datetime = timezone.now()
+        else:
+            recorded_datetime = timezone.now()
+        
+        # PredictionTask로 저장
+        task = PredictionTask.objects.create(
+            patient=patient,
+            task_type='COMPLICATION',
+            status='COMPLETED',
+            input_data={
+                'complications': complications,
+                'medications': medications,
+                'recorded_at': recorded_at,
+                'notes': data.get('notes', '')
+            },
+            predictions={
+                'data_registered': True,
+                'complications_count': len([k for k, v in complications.items() if v]),
+                'medications_count': len([k for k, v in medications.items() if v])
+            },
+            requested_by=request.user if request.user.is_authenticated else None
+        )
+        
+        response_data = {
+            'task_id': str(task.task_id),
+            'patient_uuid': str(patient.uuid),
+            'message': '합병증 및 투약 정보가 성공적으로 등록되었습니다.',
+            'registered_at': task.created_at.isoformat()
+        }
+        
+        return Response(response_data, status=status.HTTP_201_CREATED)
+        
+    except Exception as e:
+        logger.error(f"합병증 데이터 등록 중 오류: {e}", exc_info=True)
+        return Response(
+            {'error': f'데이터 등록 중 오류가 발생했습니다: {str(e)}'}, 
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def register_mortality_data(request):
+    """사망률 예측용 데이터 등록 API"""
+    try:
+        data = request.data
+        patient_uuid = data.get('patient_uuid') or data.get('patient')
+        
+        if not patient_uuid:
+            return Response(
+                {'error': '환자 UUID가 필요합니다.'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # 환자 조회
+        patient = get_object_or_404(OpenMRSPatient, uuid=patient_uuid)
+        
+        logger.info(f"사망률 데이터 등록 - 환자: {patient.display_name}")
+        
+        # PredictionTask로 저장
+        task = PredictionTask.objects.create(
+            patient=patient,
+            task_type='MORTALITY',
+            status='COMPLETED',
+            input_data=data,
+            predictions={
+                'data_registered': True,
+                'has_vital_signs': bool(data.get('vital_signs')),
+                'has_lab_results': bool(data.get('lab_results')),
+                'nihss_score': data.get('nihss_score')
+            },
+            requested_by=request.user if request.user.is_authenticated else None
+        )
+        
+        response_data = {
+            'task_id': str(task.task_id),
+            'patient_uuid': str(patient.uuid),
+            'message': '사망률 예측용 데이터가 성공적으로 등록되었습니다.',
+            'registered_at': task.created_at.isoformat()
+        }
+        
+        return Response(response_data, status=status.HTTP_201_CREATED)
+        
+    except Exception as e:
+        logger.error(f"사망률 데이터 등록 중 오류: {e}", exc_info=True)
+        return Response(
+            {'error': f'데이터 등록 중 오류가 발생했습니다: {str(e)}'}, 
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+# ============= 이력 조회 API (새로 추가) =============
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def get_complications_history(request, patient_uuid):
+    """합병증 예측 이력 조회"""
+    try:
+        patient = get_object_or_404(OpenMRSPatient, uuid=patient_uuid)
+        
+        # 합병증 관련 예측 작업들 조회
+        tasks = PredictionTask.objects.filter(
+            patient=patient,
+            task_type='COMPLICATION'
+        ).order_by('-created_at')[:20]
+        
+        history = []
+        for task in tasks:
+            # ComplicationPrediction 레코드들 조회
+            predictions = ComplicationPrediction.objects.filter(task=task)
+            
+            task_data = {
+                'task_id': str(task.task_id),
+                'created_at': task.created_at.isoformat(),
+                'status': task.status,
+                'input_data': task.input_data,
+                'predictions': {}
+            }
+            
+            # 각 합병증별 예측 결과 추가
+            for pred in predictions:
+                task_data['predictions'][pred.complication_type] = {
+                    'probability': pred.probability,
+                    'risk_level': pred.risk_level,
+                    'model_performance': {
+                        'auc': pred.model_auc,
+                        'precision': pred.model_precision,
+                        'recall': pred.model_recall,
+                        'f1': pred.model_f1
+                    }
+                }
+            
+            # 입력 데이터만 있는 경우 (등록만 한 경우)
+            if not predictions.exists() and task.input_data:
+                task_data['data_type'] = 'registration_only'
+                task_data['complications'] = task.input_data.get('complications', {})
+                task_data['medications'] = task.input_data.get('medications', {})
+            
+            history.append(task_data)
+        
         return Response({
-            'error': 'PREDICTION_FAILED',
-            'message': f'사망률 예측 중 오류가 발생했습니다: {str(e)}'
-        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            'patient_uuid': str(patient.uuid),
+            'history': history,
+            'total_count': len(history)
+        }, status=status.HTTP_200_OK)
+        
+    except Exception as e:
+        logger.error(f"합병증 이력 조회 중 오류: {e}", exc_info=True)
+        return Response(
+            {'error': f'이력 조회 중 오류가 발생했습니다: {str(e)}'}, 
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def get_mortality_history(request, patient_uuid):
+    """사망률 예측 이력 조회"""
+    try:
+        patient = get_object_or_404(OpenMRSPatient, uuid=patient_uuid)
+        
+        # 사망률 관련 예측 작업들 조회
+        tasks = PredictionTask.objects.filter(
+            patient=patient,
+            task_type='MORTALITY'
+        ).order_by('-created_at')[:20]
+        
+        history = []
+        for task in tasks:
+            # StrokeMortalityPrediction 레코드 조회
+            try:
+                mortality_pred = StrokeMortalityPrediction.objects.get(task=task)
+                task_data = {
+                    'task_id': str(task.task_id),
+                    'created_at': task.created_at.isoformat(),
+                    'status': task.status,
+                    'mortality_30_day': mortality_pred.mortality_30_day,
+                    'risk_level': mortality_pred.mortality_30_day_risk_level,
+                    'confidence': mortality_pred.model_confidence,
+                    'nihss_score': mortality_pred.nihss_score,
+                    'stroke_type': mortality_pred.stroke_type,
+                    'reperfusion_treatment': mortality_pred.reperfusion_treatment,
+                    'clinical_recommendations': mortality_pred.clinical_recommendations
+                }
+            except StrokeMortalityPrediction.DoesNotExist:
+                # 예측 결과가 없으면 입력 데이터만 표시
+                task_data = {
+                    'task_id': str(task.task_id),
+                    'created_at': task.created_at.isoformat(),
+                    'status': task.status,
+                    'data_type': 'registration_only',
+                    'input_data': task.input_data
+                }
+            
+            history.append(task_data)
+        
+        return Response({
+            'patient_uuid': str(patient.uuid),
+            'history': history,
+            'total_count': len(history)
+        }, status=status.HTTP_200_OK)
+        
+    except Exception as e:
+        logger.error(f"사망률 이력 조회 중 오류: {e}", exc_info=True)
+        return Response(
+            {'error': f'이력 조회 중 오류가 발생했습니다: {str(e)}'}, 
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+# ============= 기존 API 호환성 유지 =============
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def predict_stroke_mortality(request):
+    """기존 API 호환성을 위한 래퍼"""
+    return predict_mortality(request)
 
 @api_view(['POST'])
 @permission_classes([AllowAny])

@@ -1,25 +1,28 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { fetchVitalsHistory, saveVitals } from '../../services/vitalApiService';
 
 import { Line } from 'react-chartjs-2';
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend } from 'chart.js';
+import annotationPlugin from 'chartjs-plugin-annotation'; // annotation 플러그인은 혹시 모를 미래 확장성을 위해 남겨둡니다.
 
-// Chart.js 모듈 등록
-ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend);
+// Chart.js 모듈 및 플러그인 등록
+ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, annotationPlugin);
 
-// UI 표시를 위한 활력 징후 정의
+// UI 표시를 위한 활력 징후 정의 및 정상/경고/위험 범위
+// BP는 SBP와 DBP로 나누어 정의합니다.
 const VITAL_DEFINITIONS = {
-    temp: { name: '체온', unit: '°C' },
-    hr: { name: '심박수', unit: 'bpm' },
-    rr: { name: '호흡수', unit: '회/분' },
-    bp: { name: '혈압', unit: 'mmHg' },
-    spo2: { name: '산소포화도', unit: '%' },
+    temp: { name: '체온', unit: '°C', color: '#f4a261', normalRange: [36.1, 37.2], warningRange: [[35.0, 36.0], [37.3, 38.0]], dangerRange: [[0, 34.9], [38.1, 42]] },
+    hr: { name: '심박수', unit: 'bpm', color: '#fcbf49', normalRange: [60, 100], warningRange: [[40, 59], [101, 120]], dangerRange: [[0, 39], [121, 200]] },
+    rr: { name: '호흡수', unit: '회/분', color: '#1CCAD8', normalRange: [12, 20], warningRange: [[8, 11], [21, 24]], dangerRange: [[0, 7], [25, 60]] },
+    bp_systolic: { name: '수축기 혈압', unit: 'mmHg', color: '#6c757d', normalRange: [90, 120], warningRange: [[80, 89], [121, 140]], dangerRange: [[0, 79], [141, 200]] },
+    bp_diastolic: { name: '이완기 혈압', unit: 'mmHg', color: '#adb5bd', normalRange: [60, 80], warningRange: [[50, 59], [81, 90]], dangerRange: [[0, 49], [91, 120]] },
+    spo2: { name: '산소포화도', unit: '%', color: '#2a9d8f', normalRange: [95, 100], warningRange: [[90, 94]], dangerRange: [[0, 89]] },
 };
 
 // 차트 생성을 위한 키 목록
-const CHARTABLE_VITALS = ['temp', 'hr', 'rr', 'spo2'];
+const CHARTABLE_VITALS = ['bp_systolic', 'bp_diastolic', 'hr', 'rr', 'temp', 'spo2'];
 
-// 초기 폼 상태
+// 초기 폼 상태 (동일)
 const initialFormData = {
     bp_systolic: '',
     bp_diastolic: '',
@@ -37,8 +40,11 @@ const VitalSignsPage = ({ selectedPatient, onBackToPatientList }) => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [successMessage, setSuccessMessage] = useState('');
-    
+
     const [vitalSessions, setVitalSessions] = useState([]);
+
+    // 범례 호버 상태를 관리하는 state
+    const [hoveredDatasetIndex, setHoveredDatasetIndex] = useState(null);
 
     useEffect(() => {
         const now = new Date();
@@ -57,7 +63,8 @@ const VitalSignsPage = ({ selectedPatient, onBackToPatientList }) => {
         setError(null);
         try {
             const sessions = await fetchVitalsHistory(patientUuid);
-            const sortedSessions = sessions.sort((a, b) => new Date(b.recorded_at) - new Date(a.recorded_at));
+            // 최신 데이터가 차트의 오른쪽에 오도록 정렬
+            const sortedSessions = sessions.sort((a, b) => new Date(a.recorded_at) - new Date(b.recorded_at));
             setVitalSessions(sortedSessions);
         } catch (err) {
             console.error("Error loading vital sessions:", err);
@@ -87,7 +94,7 @@ const VitalSignsPage = ({ selectedPatient, onBackToPatientList }) => {
             setError("측정 시간과 하나 이상의 측정값은 필수입니다.");
             return;
         }
-        
+
         setLoading(true);
 
         try {
@@ -126,58 +133,155 @@ const VitalSignsPage = ({ selectedPatient, onBackToPatientList }) => {
         }
     };
 
-    const generateChartData = (vitalKey) => {
-        const labels = vitalSessions.map(session => new Date(session.recorded_at).toLocaleString()).reverse();
-        const dataValues = vitalSessions.map(session => session.measurements ? session.measurements[vitalKey] : null).filter(v => v != null).reverse();
+    // 통합 차트 데이터 및 옵션 생성 (범례 호버 및 배경색 제거 적용)
+    const generateCombinedChartConfig = useMemo(() => {
+        if (vitalSessions.length === 0) return { data: { labels: [], datasets: [] }, options: {} };
+
+        const labels = vitalSessions.map(session => {
+            const date = new Date(session.recorded_at);
+            return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+        });
+
+        const datasets = [];
+
+        CHARTABLE_VITALS.forEach((key, index) => {
+            const def = VITAL_DEFINITIONS[key];
+            if (!def) return;
+
+            let dataValues;
+            if (key === 'bp_systolic') {
+                dataValues = vitalSessions.map(session => session.measurements?.bp ? parseInt(session.measurements.bp.split('/')[0]) : null);
+            } else if (key === 'bp_diastolic') {
+                dataValues = vitalSessions.map(session => session.measurements?.bp ? parseInt(session.measurements.bp.split('/')[1]) : null);
+            } else {
+                dataValues = vitalSessions.map(session => session.measurements?.[key]);
+            }
+
+            // 호버 상태에 따라 투명도 조절
+            const alpha = (hoveredDatasetIndex === null || hoveredDatasetIndex === index) ? 1 : 0.2;
+            const lineColor = def.color;
+            // 배경색은 정의된 색상에 0.2 투명도 적용
+            const fillColor = def.color + '33'; // 16진수 투명도 33은 약 20%를 의미합니다.
+
+            datasets.push({
+                label: def.name,
+                data: dataValues,
+                borderColor: `rgba(${parseInt(lineColor.slice(1,3), 16)}, ${parseInt(lineColor.slice(3,5), 16)}, ${parseInt(lineColor.slice(5,7), 16)}, ${alpha})`,
+                backgroundColor: fillColor, // 배경색은 호버와 관계없이 고정된 투명도로 설정
+                tension: 0.3,
+                pointRadius: 4,
+                pointBackgroundColor: dataValues.map(val => {
+                    if (val === null) return `rgba(128, 128, 128, ${alpha})`; // 데이터 없을 경우 회색
+                    const checkRange = (ranges, color) => {
+                        if (ranges) {
+                            for (const range of ranges) {
+                                if (val >= range[0] && val <= range[1]) {
+                                    return color;
+                                }
+                            }
+                        }
+                        return null;
+                    };
+                    // 비정상 값은 빨간색으로 강조, 호버 시에도 빨간색 유지
+                    return checkRange(def.dangerRange, 'red') || checkRange(def.warningRange, 'red') || `rgba(${parseInt(lineColor.slice(1,3), 16)}, ${parseInt(lineColor.slice(3,5), 16)}, ${parseInt(lineColor.slice(5,7), 16)}, ${alpha})`;
+                }),
+                pointBorderColor: dataValues.map(val => {
+                     if (val === null) return `rgba(128, 128, 128, ${alpha})`;
+                     const checkRange = (ranges, color) => {
+                         if (ranges) {
+                             for (const range of ranges) {
+                                 if (val >= range[0] && val <= range[1]) {
+                                     return color;
+                                 }
+                             }
+                         }
+                         return null;
+                     };
+                     return checkRange(def.dangerRange, 'red') || checkRange(def.warningRange, 'red') || `rgba(${parseInt(lineColor.slice(1,3), 16)}, ${parseInt(lineColor.slice(3,5), 16)}, ${parseInt(lineColor.slice(5,7), 16)}, ${alpha})`;
+                 }),
+                pointBorderWidth: 2,
+                pointHoverRadius: 6,
+                yAxisID: 'y',
+            });
+        });
+
+        const options = {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'top',
+                    labels: {
+                        font: { size: 14, weight: 'bold' },
+                        usePointStyle: true,
+                        // ✨ legend.labels.generateLabels 커스터마이징 ✨
+                        generateLabels: function(chart) {
+                            const data = chart.data;
+                            return data.datasets.map(function(dataset, i) {
+                                // VITAL_DEFINITIONS에서 정의된 고정 색상을 사용
+                                const vitalKey = CHARTABLE_VITALS[i];
+                                const def = VITAL_DEFINITIONS[vitalKey];
+                                const legendColor = def ? def.color : dataset.borderColor; // 정의된 색상이 없으면 데이터셋의 borderColor 사용
+
+                                return {
+                                    text: dataset.label,
+                                    fillStyle: legendColor, // 범례 아이콘 색상
+                                    strokeStyle: legendColor, // 범례 아이콘 테두리 색상 (선이므로 보통 fillStyle과 동일)
+                                    lineWidth: 1, // 범례 아이콘 테두리 두께
+                                    pointStyle: 'circle', // 범례 아이콘 스타일
+                                    hidden: !chart.isDatasetVisible(i), // 데이터셋이 숨겨져 있으면 범례도 숨김
+                                    lineCap: dataset.borderCapStyle,
+                                    lineDash: dataset.borderDash,
+                                    lineDashOffset: dataset.borderDashOffset,
+                                    lineJoin: dataset.borderJoinStyle,
+                                    datasetIndex: i
+                                };
+                            });
+                        }
+                    },
+                    // 범례 호버 이벤트 핸들러
+                    onHover: function(event, legendItem, legend) {
+                        setHoveredDatasetIndex(legendItem.datasetIndex);
+                    },
+                    onLeave: function(event, legendItem, legend) {
+                        setHoveredDatasetIndex(null);
+                    }
+                },
+                title: {
+                    display: true,
+                    text: '활력 징후 추이',
+                    font: { size: 20, weight: 'bold' },
+                    color: '#333'
+                },
+                tooltip: { mode: 'index', intersect: false },
+                // annotation: { annotations: annotations }, // ⭐️ Annotation 제거
+            },
+            scales: {
+                x: {
+                    title: { display: true, text: '측정 시간', font: { size: 14, weight: 'bold' } },
+                    grid: { color: 'rgba(0, 0, 0, 0.05)' },
+                    ticks: { autoSkip: true, maxTicksLimit: 10 }
+                },
+                y: {
+                    type: 'linear',
+                    position: 'left',
+                    title: { display: false }, // 사진처럼 Y축 제목은 제외
+                    grid: { color: 'rgba(0, 0, 0, 0.05)' },
+                    // 모든 데이터셋의 최소/최대값을 고려하여 Y축 범위 자동 조절
+                    min: Math.min(0, ...datasets.flatMap(dataset => dataset.data.filter(v => v !== null))),
+                    max: Math.max(110, ...datasets.flatMap(dataset => dataset.data.filter(v => v !== null))),
+                },
+            },
+            animation: {
+                duration: 0 // 애니메이션 비활성화 (부드러운 호버 전환 위해)
+            }
+        };
 
         return {
-            labels,
-            datasets: [
-                {
-                    label: `${VITAL_DEFINITIONS[vitalKey].name} (${VITAL_DEFINITIONS[vitalKey].unit})`,
-                    data: dataValues,
-                    borderColor: 'rgb(75, 192, 192)',
-                    backgroundColor: 'rgba(75, 192, 192, 0.2)',
-                    tension: 0.1,
-                },
-            ],
+            data: { labels, datasets },
+            options,
         };
-    };
-
-    const generateBloodPressureChartData = () => {
-        const labels = vitalSessions.map(session => new Date(session.recorded_at).toLocaleString()).reverse();
-        const sbpData = vitalSessions.map(session => {
-            const bp = session.measurements?.bp;
-            if (bp && bp.includes('/')) return parseInt(bp.split('/')[0]);
-            return null;
-        }).filter(v => v != null).reverse();
-
-        const dbpData = vitalSessions.map(session => {
-            const bp = session.measurements?.bp;
-            if (bp && bp.includes('/')) return parseInt(bp.split('/')[1]);
-            return null;
-        }).filter(v => v != null).reverse();
-
-        return {
-            labels,
-            datasets: [
-                {
-                    label: '수축기 혈압 (SBP)',
-                    data: sbpData,
-                    borderColor: 'rgb(255, 99, 132)',
-                    backgroundColor: 'rgba(255, 99, 132, 0.2)',
-                    tension: 0.1,
-                },
-                {
-                    label: '이완기 혈압 (DBP)',
-                    data: dbpData,
-                    borderColor: 'rgb(54, 162, 235)',
-                    backgroundColor: 'rgba(54, 162, 235, 0.2)',
-                    tension: 0.1,
-                },
-            ],
-        };
-    };
+    }, [vitalSessions, hoveredDatasetIndex]); // hoveredDatasetIndex가 변경될 때마다 차트 재계산
 
     if (!selectedPatient) {
         return <div style={{ padding: '20px' }}><h3>환자를 선택해주세요.</h3></div>;
@@ -203,10 +307,10 @@ const VitalSignsPage = ({ selectedPatient, onBackToPatientList }) => {
                                 <input type="number" name="bp_diastolic" placeholder="DBP" value={formData.bp_diastolic} onChange={handleFormChange} style={{width: '45%', padding: '8px'}} />
                             </div>
                         </div>
-                        {CHARTABLE_VITALS.map(key => (
+                        {Object.keys(VITAL_DEFINITIONS).filter(key => key !== 'bp_systolic' && key !== 'bp_diastolic').map(key => (
                              <div key={key}>
-                                <label>{VITAL_DEFINITIONS[key].name}:</label>
-                                <input type="number" step="0.1" name={key} placeholder={`단위: ${VITAL_DEFINITIONS[key].unit}`} value={formData[key]} onChange={handleFormChange} style={{width: '95%', padding: '8px'}} />
+                                <label>{VITAL_DEFINITIONS?.[key]?.name}:</label>
+                                <input type="number" step="0.1" name={key} placeholder={`단위: ${VITAL_DEFINITIONS?.[key]?.unit}`} value={formData?.[key]} onChange={handleFormChange} style={{width: '95%', padding: '8px'}} />
                             </div>
                         ))}
                          <div>
@@ -226,18 +330,9 @@ const VitalSignsPage = ({ selectedPatient, onBackToPatientList }) => {
                 <h4>활력 징후 추이</h4>
                 {loading && <p>기록 로딩 중...</p>}
                 {vitalSessions.length > 0 ? (
-                    <>
-                        <div style={{ marginBottom: '20px' }}>
-                            <h5>혈압 추이 (SBP/DBP)</h5>
-                            <Line data={generateBloodPressureChartData()} />
-                        </div>
-                        {CHARTABLE_VITALS.map(key => (
-                            <div key={key} style={{ marginBottom: '20px' }}>
-                                <h5>{VITAL_DEFINITIONS[key].name} 추이</h5>
-                                <Line data={generateChartData(key)} />
-                            </div>
-                        ))}
-                    </>
+                    <div style={{ height: '400px' }}>
+                        <Line {...generateCombinedChartConfig} />
+                    </div>
                 ) : (
                     !loading && <p>표시할 활력 징후 기록이 없습니다.</p>
                 )}
