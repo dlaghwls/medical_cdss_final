@@ -212,7 +212,8 @@ import DicomViewer from './DicomViewer';
 
 // --- API 설정 ---
 const api = axios.create({
-    baseURL: 'http://34.64.188.9:8000/api/pacs',
+    baseURL: 'http://34.64.188.9:8000/api/pacs', // 0626유정우
+    // baseURL: '/api/pacs',
     headers: { 'Content-Type': 'application/json' },
 });
 
@@ -317,7 +318,7 @@ const SegmentationBrowser = ({ selectedPatient }) => {
         <div className="p-4 font-sans h-full">
             <h2 className="text-2xl font-bold mb-4">영상 분할 및 분석</h2>
             <div className="bg-white p-4 border rounded-lg shadow-sm">
-                <h3 className="text-lg font-semibold mb-3">GCS 저장소 브라우저</h3>
+                <h3 className="text-lg font-semibold mb-3">환자 MRI 이미지 목록</h3>
                 {sessions.length === 0 ? (
                     <p className="text-gray-500">이 환자에 대한 분석 세션이 없습니다.</p>
                 ) : (

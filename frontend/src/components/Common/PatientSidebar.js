@@ -212,9 +212,9 @@ const OpenMRSPatientList = ({ refreshTrigger, onPatientSelect }) => {
     };
 
     return (
-        <div>
+        // **변경 시작:** 이 div가 스크롤 가능한 영역이 됩니다.
+        <div style={{ flexGrow: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
             <h4>환자 목록</h4>
-            {/* ... 이 컴포넌트의 나머지 JSX는 기존과 동일하게 유지 ... */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '10px' }}>
                 <form onSubmit={handleSearch} style={{ display: 'flex' }}>
                     <input type="text" placeholder="환자 이름, ID 검색..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} style={{ padding: '6px', width: '70%', border: '1px solid #ccc', borderRadius: '3px', fontSize: '0.85rem' }}/>
@@ -232,7 +232,7 @@ const OpenMRSPatientList = ({ refreshTrigger, onPatientSelect }) => {
                 <p style={{marginTop: '10px', fontSize: '0.8em'}}>표시할 환자가 없거나, 검색 결과가 없습니다.</p>
             )}
             {!loading && !error && patients.length > 0 && (
-                <>
+                <div style={{ overflowY: 'auto', flexGrow: 1 }}> {/* **변경:** 이 div가 실제로 스크롤되는 영역입니다. */}
                     <p style={{marginTop: '5px', fontSize: '0.75em', color: '#555'}}>총 {totalPatients}명</p>
                     <ul style={{ listStyleType: 'none', padding: 0, marginTop: '5px' }}>
                         {patients.map(patient => (
@@ -253,16 +253,16 @@ const OpenMRSPatientList = ({ refreshTrigger, onPatientSelect }) => {
                             </li>
                         ))}
                     </ul>
-                </>
+                </div>
             )}
-        </div>
+        </div> // **변경 끝**
     );
 };
 
 // --- 최종 조립: 메인 환자 사이드바 컴포넌트 ---
 export const PatientSidebar = ({ onPatientSelect, onPatientRegistered, refreshPatientListTrigger, style, selectedPatient }) => {
     return (
-        <div className="patient-sidebar" style={{ padding: '15px', ...style }}>
+        <div className="patient-sidebar" style={{ padding: '15px', ...style, display: 'flex', flexDirection: 'column', height: '100vh' }}> {/* **변경:** height: '100vh' 또는 부모 컨테이너에 맞게 설정 */}
             <SelectedPatientInfo selectedPatient={selectedPatient} />
             <PatientRegistration onRegistrationSuccess={onPatientRegistered} />
             <hr style={{margin: '20px 0'}} />

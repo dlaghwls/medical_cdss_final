@@ -292,6 +292,76 @@ const aiService = {
             throw error;
         }
     },
+
+    // =================================================================
+    // ★★★ 추교상넌할수있어 ★★★
+    // =================================================================
+     fetchLabHistory: async (patientUuid) => {
+        try {
+            // ※ 중요: 이 API 주소는 실제 프로젝트의 LAB 이력 조회 주소여야 합니다.
+            // 보통 `/lab-results/` 또는 `/labs/` 와 같은 형태입니다.
+            const response = await djangoApiClient.get(`lab-results/?patient_uuid=${patientUuid}`);
+            
+            // Django Rest Framework의 페이지네이션 응답을 처리
+            if (response.data && Array.isArray(response.data.results)) {
+                return response.data.results;
+            }
+            // 페이지네이션이 없는 경우
+            return response.data;
+        } catch (error) {
+            console.error('Error fetching lab history:', error.response || error);
+            throw error;
+        }
+    },
+    /**
+     * 특정 환자의 가장 최신 활력 징후(Vital) 기록 1개를 가져옵니다.
+     * @param {string} patientUuid - 환자의 UUID
+     * @returns {Promise<object | null>} - 최신 활력 징후 기록 객체 또는 null
+     */
+    fetchLatestVitals: async (patientUuid) => {
+        try {
+            // 순환 참조를 피하기 위해, fetchVitalsHistory의 로직을 직접 사용합니다.
+            const response = await djangoApiClient.get(`vitals/?patient_uuid=${patientUuid}&period=all`);
+            const history = (response.data && Array.isArray(response.data.results)) ? response.data.results : response.data;
+
+            if (history && history.length > 0) {
+                // 날짜 내림차순으로 정렬하여 가장 최신 기록을 찾습니다.
+                const sorted = history.sort((a, b) => 
+                    new Date(b.recorded_at || b.created_at) - new Date(a.recorded_at || a.created_at)
+                );
+                return sorted[0]; // 첫 번째 항목이 가장 최신 데이터입니다.
+            }
+            return null; // 기록이 없는 경우
+        } catch (error) {
+            if (error.response?.status === 404) return null;
+            console.error('Error fetching latest vitals:', error.response || error);
+            throw error;
+        }
+    },
+
+    /**
+     * 특정 환자의 가장 최신 LAB 기록 1개를 가져옵니다.
+     * @param {string} patientUuid - 환자의 UUID
+     * @returns {Promise<object | null>} - 최신 LAB 기록 객체 또는 null
+     */
+    fetchLatestLabs: async (patientUuid) => {
+        try {
+            // ※ 중요: 이 주소는 실제 프로젝트의 LAB 이력 조회 API 주소여야 합니다.
+            // 개발자 도구의 Network 탭을 확인하여 정확한 주소를 입력해주세요.
+            const response = await djangoApiClient.get(`lab-results/?patient_uuid=${patientUuid}`);
+            const history = response.data.results || response.data;
+
+            if (history && Array.isArray(history) && history.length > 0) {
+                const sorted = history.sort((a, b) => new Date(b.recorded_at) - new Date(a.recorded_at));
+                return sorted[0];
+            }
+            return null;
+        } catch (error) {
+            if (error.response?.status === 404) return null;
+            console.error('Error fetching latest labs:', error.response || error);
+            throw error;
+        }
+    },
 };
 
 export default aiService;

@@ -1,331 +1,167 @@
-// 6월 26일 오후 4시 작업 전 원본 코드
-// import React, { useState } from 'react';
-// import LabOrderForm from './LabOrderForm';
-// import PatientLabResultsView from './PatientLabResultsView';
-// import PendingOrdersList from './PendingOrdersList';
-
-// const LabPage = ({ user, selectedPatient }) => {
-//   // TODO: user.role 인증이 구현되면 아래 코드로 교체하세요.
-//   // const userRole = user?.role; // 'nurse', 'tec'
-  
-//   // 임시 역할 전환기
-//   const [viewAs, setViewAs] = useState('nurse'); 
-//   const userRole = viewAs;
-
-//   const [activeNurseTab, setActiveNurseTab] = useState('order');
-
-//   const renderRoleSwitcher = () => (
-//     <div style={{ marginBottom: '20px', padding: '10px', backgroundColor: '#f0f0f0', border: '1px solid #ccc' }}>
-//       <h4>임시 뷰 전환 (개발용)</h4>
-//       <button onClick={() => setViewAs('nurse')} style={{ backgroundColor: viewAs === 'nurse' ? '#007bff' : 'grey', color: 'white', marginRight: '10px' }}>간호사 뷰</button>
-//       <button onClick={() => setViewAs('tec')} style={{ backgroundColor: viewAs === 'tec' ? '#007bff' : 'grey', color: 'white' }}>검사 담당자 뷰</button>
-//       <p style={{marginTop: '5px'}}>현재 뷰: <strong>{viewAs}</strong></p>
-//     </div>
-//   );
-
-//   const renderNurseView = () => (
-//     <div>
-//         <div style={{ marginBottom: '20px' }}>
-//             <button onClick={() => setActiveNurseTab('order')} style={{ marginRight: '10px', fontWeight: activeNurseTab === 'order' ? 'bold' : 'normal' }}>검사 요청</button>
-//             <button onClick={() => setActiveNurseTab('results')} style={{ fontWeight: activeNurseTab === 'results' ? 'bold' : 'normal' }}>결과 조회</button>
-//         </div>
-//         {activeNurseTab === 'order' ? 
-//             <LabOrderForm selectedPatient={selectedPatient} user={user} /> :
-//             <PatientLabResultsView selectedPatient={selectedPatient} />
-//         }
-//     </div>
-//   );
-
-//   const renderTechnicianView = () => (
-//     <PendingOrdersList />
-//   );
-
-//   return (
-//     <div style={{ padding: '20px' }}>
-//       {renderRoleSwitcher()}
-//       <h2>랩 검사 (Lab Tests)</h2>
-      
-//       {/* // user.role 인증 구현 후 사용할 실제 렌더링 로직
-//         {userRole === 'nurse' && renderNurseView()}
-//         {userRole === 'tec' && renderTechnicianView()}
-//         {!userRole && <div>역할이 지정되지 않은 사용자입니다.</div>}
-//       */}
-      
-//       {/* 임시 렌더링 로직 */}
-//       {userRole === 'nurse' && renderNurseView()}
-//       {userRole === 'tec' && renderTechnicianView()}
-//     </div>
-//   );
-// };
-
-// export default LabPage;
-
-// import React, { useState } from 'react';
-// import LabOrderForm from './LabOrderForm';
-// import PatientLabResultsView from './PatientLabResultsView';
-// import PendingOrdersList from './PendingOrdersList';
-
-// const LabPage = ({ user, selectedPatient }) => {
-//   const [viewAs, setViewAs] = useState('nurse'); 
-//   const userRole = viewAs;
-
-//   const [activeNurseTab, setActiveNurseTab] = useState('order');
-
-//   const renderRoleSwitcher = () => (
-//     <div style={{
-//       marginBottom: '20px',
-//       padding: '10px',
-//       backgroundColor: '#f9f9f9',
-//       border: '1px solid #e0e0e0',
-//       borderRadius: '6px'
-//     }}>
-//       <h4 style={{ fontWeight: 'bold' }}>임시 뷰 전환 (개발용)</h4>
-//       <div>
-//         <button
-//           onClick={() => setViewAs('nurse')}
-//           style={{
-//             padding: '5px 15px',
-//             marginRight: '10px',
-//             fontWeight: viewAs === 'nurse' ? 'bold' : 'normal',
-//             backgroundColor: viewAs === 'nurse' ? '#007BFF' : '#777',
-//             color: 'white',
-//             borderRadius: '4px'
-//           }}
-//         >
-//           간호사 뷰
-//         </button>
-//         <button
-//           onClick={() => setViewAs('tec')}
-//           style={{
-//             padding: '5px 15px',
-//             fontWeight: viewAs === 'tec' ? 'bold' : 'normal',
-//             backgroundColor: viewAs === 'tec' ? '#007BFF' : '#777',
-//             color: 'white',
-//             borderRadius: '4px'
-//           }}
-//         >
-//           검사 담당자 뷰
-//         </button>
-//       </div>
-//       <p style={{ marginTop: '5px' }}>현재 뷰: <strong>{viewAs}</strong></p>
-//     </div>
-//   );
-
-//   const renderNurseView = () => (
-//     <div>
-//       <div style={{ marginBottom: '15px' }}>
-//         <button
-//           onClick={() => setActiveNurseTab('order')}
-//           style={{
-//             marginRight: '15px',
-//             padding: '7px 20px',
-//             fontWeight: activeNurseTab === 'order' ? 'bold' : 'normal',
-//             borderBottom: activeNurseTab === 'order' ? '2px solid #007BFF' : 'none',
-//             fontSize: '1rem',
-//             cursor: 'pointer',
-//             background: 'none',
-//             border: 'none'
-//           }}
-//         >
-//           검사 요청
-//         </button>
-//         <button
-//           onClick={() => setActiveNurseTab('results')}
-//           style={{
-//             padding: '7px 20px',
-//             fontWeight: activeNurseTab === 'results' ? 'bold' : 'normal',
-//             borderBottom: activeNurseTab === 'results' ? '2px solid #007BFF' : 'none',
-//             fontSize: '1rem',
-//             cursor: 'pointer',
-//             background: 'none',
-//             border: 'none'
-//           }}
-//         >
-//           결과 조회
-//         </button>
-//       </div>
-//       <div style={{
-//         padding: '20px',
-//         backgroundColor: '#fff',
-//         borderRadius: '8px',
-//         border: '1px solid #e0e0e0',
-//         boxShadow: '0px 2px 8px rgba(0,0,0,.1)',
-//       }}>
-//         {activeNurseTab === 'order' ? 
-//             <LabOrderForm selectedPatient={selectedPatient} user={user} /> :
-//             <PatientLabResultsView selectedPatient={selectedPatient} />
-//         }
-//       </div>
-//     </div>
-//   );
-
-//   const renderTechnicianView = () => (
-//     <div style={{
-//       padding: '20px',
-//       backgroundColor: '#fff',
-//       borderRadius: '8px',
-//       border: '1px solid #e0e0e0',
-//       boxShadow: '0px 2px 8px rgba(0,0,0,.1)',
-//     }}>
-//       <PendingOrdersList />
-//     </div>
-//   );
-
-//   return (
-//     <div style={{ padding: '20px' }}>
-//       {renderRoleSwitcher()}
-//       <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>랩 검사 (Lab Tests)</h2>
-//       {userRole === 'nurse' && renderNurseView()}
-//       {userRole === 'tec' && renderTechnicianView()}
-//     </div>
-//   );
-// };
-
-// export default LabPage;
-
 import React, { useState } from 'react';
+
 import LabOrderForm from './LabOrderForm';
 import PatientLabResultsView from './PatientLabResultsView';
+import LabResultInputForm from './LabResultInputForm';
 import PendingOrdersList from './PendingOrdersList';
 
 const LabPage = ({ user, selectedPatient }) => {
-  const [viewAs, setViewAs] = useState('nurse'); 
-  const userRole = viewAs;
+  // 'request': 검사 요청 탭
+  // 'view': 결과 조회 탭
+  const [activeTab, setActiveTab] = useState('request'); 
 
-  const [activeNurseTab, setActiveNurseTab] = useState('order');
+  // '검사 요청' 후 하단에 결과 입력 폼을 띄울지 여부
+  const [showInputFormAfterOrder, setShowInputFormAfterOrder] = useState(false);
+  // '검사 요청' 후 결과 입력 폼에 미리 채워질 검사 종류
+  const [testTypeFromOrdered, setTestTypeFromOrdered] = useState(null);
 
-  const renderRoleSwitcher = () => (
-    <div style={{
-      padding: '20px',
-      borderRadius: '12px',
-      backgroundColor: '#fafafa',
-      border: '1px solid #e0e0e0',
-      boxShadow: '0px 2px 8px rgba(0,0,0,.1)',
-      marginBottom: '25px'
-    }}>
-      <h4 style={{
-        fontWeight: 'bold',
-        fontSize: '1.1rem',
-        color: '#333',
-        marginBottom: '12px'
-      }}>
-        👥 임시 뷰 전환 (개발용)
-      </h4>
-      <div style={{ display: 'flex', alignItems: 'center' }}>
-        <button
-          onClick={() => setViewAs('nurse')}
-          style={{
-            padding: '8px 20px',
-            fontWeight: 'bold',
-            fontSize: '1rem',
-            color: 'white',
-            backgroundColor: viewAs === 'nurse' ? '#007BFF' : '#777',
-            borderRadius: '8px',
-            border: 'none',
-            cursor: 'pointer',
-            marginRight: '12px',
-            boxShadow: '0px 2px 6px rgba(0,0,0,.1)',
-            transition: 'all .3s',
-          }}
-        >
-          간호사 뷰
-        </button>
-        <button
-          onClick={() => setViewAs('tec')}
-          style={{
-            padding: '8px 20px',
-            fontWeight: 'bold',
-            fontSize: '1rem',
-            color: 'white',
-            backgroundColor: viewAs === 'tec' ? '#007BFF' : '#777',
-            borderRadius: '8px',
-            border: 'none',
-            cursor: 'pointer',
-            boxShadow: '0px 2px 6px rgba(0,0,0,.1)',
-            transition: 'all .3s',
-          }}
-        >
-          검사 담당자 뷰
-        </button>
-      </div>
-      <p style={{
-        marginTop: '10px',
-        fontSize: '0.95rem',
-        fontWeight: 'bold',
-        color: '#555'
-      }}>
-        현재 뷰: <span style={{ color: '#007BFF' }}>{viewAs}</span>
-      </p>
-    </div>
-  );
 
-  const renderNurseView = () => (
-    <div>
-      <div style={{ marginBottom: '15px' }}>
-        <button
-          onClick={() => setActiveNurseTab('order')}
-          style={{
-            marginRight: '15px',
-            padding: '7px 20px',
-            fontWeight: activeNurseTab === 'order' ? 'bold' : 'normal',
-            borderBottom: activeNurseTab === 'order' ? '2px solid #007BFF' : 'none',
-            fontSize: '1rem',
-            cursor: 'pointer',
-            background: 'none',
-            border: 'none'
-          }}
-        >
-          검사 요청
-        </button>
-        <button
-          onClick={() => setActiveNurseTab('results')}
-          style={{
-            padding: '7px 20px',
-            fontWeight: activeNurseTab === 'results' ? 'bold' : 'normal',
-            borderBottom: activeNurseTab === 'results' ? '2px solid #007BFF' : 'none',
-            fontSize: '1rem',
-            cursor: 'pointer',
-            background: 'none',
-            border: 'none'
-          }}
-        >
-          결과 조회
-        </button>
-      </div>
-      <div style={{
-        padding: '20px',
-        backgroundColor: '#fff',
-        borderRadius: '8px',
-        border: '1px solid #e0e0e0',
-        boxShadow: '0px 2px 8px rgba(0,0,0,.1)',
-      }}>
-        {activeNurseTab === 'order' ? 
-            <LabOrderForm selectedPatient={selectedPatient} user={user} /> :
-            <PatientLabResultsView selectedPatient={selectedPatient} />
-        }
-      </div>
-    </div>
-  );
+  // GeneManagementView와 유사한 탭 스타일 함수
+  const tabStyle = (isActive) => ({
+      padding: '12px 20px',
+      marginRight: '5px',
+      cursor: 'pointer',
+      border: 'none',
+      backgroundColor: isActive ? '#007bff' : '#f8f9fa',
+      color: isActive ? 'white' : '#495057',
+      borderRadius: '8px 8px 0 0',
+      fontWeight: isActive ? 'bold' : 'normal',
+      fontSize: '14px',
+      transition: 'all 0.2s ease-in-out',
+      border: isActive ? '2px solid #007bff' : '2px solid #dee2e6',
+      borderBottom: isActive ? '2px solid white' : '2px solid #dee2e6'
+  });
 
-  const renderTechnicianView = () => (
-    <div style={{
-      padding: '20px',
-      backgroundColor: '#fff',
-      borderRadius: '8px',
-      border: '1px solid #e0e0e0',
-      boxShadow: '0px 2px 8px rgba(0,0,0,.1)',
-    }}>
-      <PendingOrdersList />
-    </div>
-  );
+  // LabOrderForm에서 검사 요청 성공 시 호출될 콜백 함수
+  const handleOrderSuccess = (orderedTestType) => {
+    // 검사 요청 성공 시 해당 검사 종류의 결과 입력 폼을 하단에 띄우기
+    setTestTypeFromOrdered(orderedTestType);
+    setShowInputFormAfterOrder(true);
+    // 요청 성공 후 스크롤을 결과 입력 폼으로 이동시키는 로직을 추가할 수도 있습니다.
+    // 예: setTimeout(() => window.scrollTo(0, document.body.scrollHeight), 100);
+  };
+
+  // 탭 변경 시 상태 초기화
+  const handleTabChange = (tabName) => {
+    setActiveTab(tabName);
+    // 탭이 바뀌면 요청 후 입력 폼 상태 초기화 (다른 탭으로 이동하면 입력 폼은 숨김)
+    setShowInputFormAfterOrder(false);
+    setTestTypeFromOrdered(null);
+  };
+
+
+  // 환자가 선택되지 않았을 때 표시할 메시지
+  if (!selectedPatient) {
+      return (
+          <div style={{ 
+              textAlign: 'center', 
+              padding: '50px',
+              backgroundColor: '#f8f9fa',
+              borderRadius: '8px',
+              margin: '20px' 
+          }}>
+              <h3 style={{ color: '#6c757d' }}>환자를 선택해주세요</h3>
+              <p style={{ color: '#6c757d' }}>
+                  왼쪽 사이드바에서 환자를 선택하면 랩 검사 관리를 시작할 수 있습니다.
+              </p>
+          </div>
+      );
+  }
 
   return (
-    <div style={{ padding: '20px' }}>
-      {renderRoleSwitcher()}
-      <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>랩 검사 (Lab Tests)</h2>
-      {userRole === 'nurse' && renderNurseView()}
-      {userRole === 'tec' && renderTechnicianView()}
-    </div>
+      <div style={{ 
+          padding: '20px',
+          backgroundColor: 'white',
+          borderRadius: '8px',
+          boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+      }}>
+          {/* 페이지 제목 및 선택된 환자 정보 */}
+          <div style={{ 
+              display: 'flex', 
+              justifyContent: 'space-between', 
+              alignItems: 'center',
+              marginBottom: '20px',
+              paddingBottom: '15px',
+              borderBottom: '2px solid #e9ecef'
+          }}>
+              <div style={{ display: 'flex', alignItems: 'center' }}>
+                  <h3 style={{ margin: 0, color: '#333' }}>
+                      랩 검사 관리
+                  </h3>
+              </div>
+              <div style={{ 
+                  fontSize: '0.9em', 
+                  color: '#6c757d',
+                  textAlign: 'right'
+              }}>
+                  <strong>환자:</strong> {selectedPatient.display}<br/>
+                  <small>UUID: {selectedPatient.uuid.substring(0, 8)}...</small>
+              </div>
+          </div>
+
+          {/* 탭 네비게이션 */}
+          <div style={{ 
+              marginBottom: '20px',
+              borderBottom: '2px solid #dee2e6',
+              paddingBottom: '0'
+          }}>
+              <button 
+                  onClick={() => handleTabChange('request')}
+                  style={tabStyle(activeTab === 'request')}
+              >
+                  검사 요청
+              </button>
+              <button 
+                  onClick={() => handleTabChange('view')}
+                  style={tabStyle(activeTab === 'view')}
+              >
+                  결과 조회
+              </button>
+          </div>
+
+          {/* 탭 내용 */}
+          <div style={{ 
+              backgroundColor: '#f8f9fa',
+              padding: '20px',
+              borderRadius: '0 8px 8px 8px',
+              minHeight: '400px'
+          }}>
+              {/* '검사 요청' 탭 내용 */}
+              {activeTab === 'request' && (
+                  <>
+                      {/* LabOrderForm에 검사 요청 성공 시 호출될 콜백 함수 전달 */}
+                      <LabOrderForm 
+                          selectedPatient={selectedPatient} 
+                          user={user} 
+                          onOrderSuccess={handleOrderSuccess} 
+                      />
+                      {/* 검사 요청 후 결과 입력 폼이 필요한 경우 렌더링 */}
+                      {showInputFormAfterOrder && (
+                          <div style={{ marginTop: '30px', padding: '20px', border: '1px solid #e0e0e0', borderRadius: '8px', backgroundColor: '#ffffff' }}>
+                              <h4 style={{ marginBottom: '15px' }}>요청된 검사 ({testTypeFromOrdered ? testTypeFromOrdered : '종류 알 수 없음'}) 결과 입력</h4>
+                              <LabResultInputForm 
+                                  selectedPatient={selectedPatient} 
+                                  testType={testTypeFromOrdered} 
+                                  // 결과 입력 후 입력 폼을 숨기거나 메시지를 표시할 콜백을 추가할 수 있습니다.
+                                  // onResultSubmitSuccess={() => setShowInputFormAfterOrder(false)}
+                              />
+                          </div>
+                      )}
+                      {/* 여기에 PendingOrdersList를 넣는다면, '검사 요청' 탭에 요청 목록이 함께 보이게 됩니다. */}
+                      <div style={{ marginTop: '30px', padding: '20px', border: '1px solid #e0e0e0', borderRadius: '8px', backgroundColor: '#ffffff' }}>
+                          <h4 style={{ marginBottom: '15px' }}>대기 중인 검사 요청 목록</h4>
+                          {/* PendingOrdersList에 selectedPatient prop을 넘겨 필터링 가능하게 할 수도 있습니다. */}
+                          <PendingOrdersList selectedPatient={selectedPatient} />
+                      </div>
+                  </>
+              )}
+
+              {/* '결과 조회' 탭 내용 */}
+              {activeTab === 'view' && (
+                  <PatientLabResultsView selectedPatient={selectedPatient} />
+              )}
+          </div>
+      </div>
   );
 };
 
