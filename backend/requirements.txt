@@ -47,3 +47,5 @@ nibabel
 SimpleITK
 lightgbm
 scikit-image
+
+django-filter==23.2

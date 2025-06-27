@@ -33,6 +33,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'openmrs_integration',
     'django_celery_beat',
+    'django_filters',
 
     'rest_framework',
     'rest_framework_simplejwt', # 6-19 추교상 로그인

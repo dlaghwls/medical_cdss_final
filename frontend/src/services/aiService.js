@@ -277,6 +277,25 @@ const aiService = {
      * @param {string} period - 조회 기간 (예: '1d', '7d')
      * @returns {Promise<Array>} - 활력 징후 기록 배열
      */
+    // fetchVitalsHistory: async (patientUuid, period = '1d') => {
+    //     try {
+    //         const response = await djangoApiClient.get(`vitals/?patient_uuid=${patientUuid}&period=${period}`);
+            
+    //         // DRF의 페이지네이션 응답을 처리하여 결과 배열만 반환합니다.
+    //         if (response.data && Array.isArray(response.data.results)) {
+    //             return response.data.results;
+    //         }
+    //         // 페이지네이션이 없는 경우, 받은 데이터 그대로 반환합니다.
+    //         return response.data;
+    //     } catch (error) {
+    //         console.error('Error fetching vitals history:', error.response || error);
+    //         throw error;
+    //     }
+    // },
+
+    // =================================================================
+    // ★★★ 추교상넌할수있어 ★★★
+    // =================================================================
     fetchVitalsHistory: async (patientUuid, period = '1d') => {
         try {
             const response = await djangoApiClient.get(`vitals/?patient_uuid=${patientUuid}&period=${period}`);
@@ -292,15 +311,22 @@ const aiService = {
             throw error;
         }
     },
-
-    // =================================================================
+    
+      // =================================================================
     // ★★★ 추교상넌할수있어 ★★★
     // =================================================================
+    /**
+     * 특정 환자의 LAB 기록을 가져옵니다.
+     * Django 백엔드 API의 실제 엔드포인트를 확인하여 아래 URL을 수정해야 합니다.
+     * 예: `/api/lab-results/?patient_uuid=${patientUuid}`
+     * @param {string} patientUuid - 환자의 UUID
+     * @returns {Promise<Array>} - LAB 기록 배열
+     */
      fetchLabHistory: async (patientUuid) => {
         try {
-            // ※ 중요: 이 API 주소는 실제 프로젝트의 LAB 이력 조회 주소여야 합니다.
-            // 보통 `/lab-results/` 또는 `/labs/` 와 같은 형태입니다.
-            const response = await djangoApiClient.get(`lab-results/?patient_uuid=${patientUuid}`);
+            // ★★★★★ 이곳의 API 주소를 실제 Django 백엔드 API 주소로 수정해주세요. ★★★★★
+            // 예: const response = await djangoApiClient.get(`api/lab-results/?patient_uuid=${patientUuid}`);
+            const response = await djangoApiClient.get(`ml/patient/${patientUuid}/lab-results/`); 
             
             // Django Rest Framework의 페이지네이션 응답을 처리
             if (response.data && Array.isArray(response.data.results)) {
@@ -341,6 +367,7 @@ const aiService = {
 
     /**
      * 특정 환자의 가장 최신 LAB 기록 1개를 가져옵니다.
+     * Django 백엔드 API의 실제 엔드포인트를 확인하여 아래 URL을 수정해야 합니다.
      * @param {string} patientUuid - 환자의 UUID
      * @returns {Promise<object | null>} - 최신 LAB 기록 객체 또는 null
      */
@@ -348,6 +375,7 @@ const aiService = {
         try {
             // ※ 중요: 이 주소는 실제 프로젝트의 LAB 이력 조회 API 주소여야 합니다.
             // 개발자 도구의 Network 탭을 확인하여 정확한 주소를 입력해주세요.
+            // 예: const response = await djangoApiClient.get(`api/lab-results/?patient_uuid=${patientUuid}`);
             const response = await djangoApiClient.get(`lab-results/?patient_uuid=${patientUuid}`);
             const history = response.data.results || response.data;
 
@@ -365,3 +393,8 @@ const aiService = {
 };
 
 export default aiService;
+
+// fetchVitalsHistory
+// fetchLatestVitals
+// fetchLabHistory
+// fetchLatestLabs

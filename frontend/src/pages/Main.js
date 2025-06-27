@@ -30,6 +30,7 @@ import { ComplicationSummary } from '../components/summaries/ComplicationSummary
 import { MortalitySummary } from '../components/summaries/MortalitySummary';
 import { SOD2Summary } from '../components/summaries/SOD2Summary';
 import { GeneSummary } from '../components/summaries/GeneSummary';
+import { ComplicationPredictionSummary } from '../components/summaries/ComplicationPredictionSummary';
 
 // 환자 요약 페이지의 메인 컴포넌트
 export const MainPage = ({ selectedPatient }) => {
@@ -63,6 +64,10 @@ export const MainPage = ({ selectedPatient }) => {
             
             <SummaryCard title="최신 합병증 기록">
                 <ComplicationSummary patientId={selectedPatient.uuid} />
+            </SummaryCard>
+
+            <SummaryCard title="최신 합병증 예측">
+                <ComplicationPredictionSummary patientId={selectedPatient.uuid} />
             </SummaryCard>
 
             <SummaryCard title="최신 사망률 예측">

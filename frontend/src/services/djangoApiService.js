@@ -10,12 +10,13 @@ export const apiClient = axios.create({
 export const ensureCsrfToken = async () => {
     try {
         console.log('Ensuring CSRF token is set...');
-        await apiClient.get('/csrf/'); 
+        await apiClient.get('accounts/csrf/'); // 수정: '/csrf/' → 'accounts/csrf/'
         console.log('CSRF setup finished.');
     } catch (error) {
         console.error('Failed to ensure CSRF token:', error);
     }
 };
+
 
 // 토큰 갱신용 별도 클라이언트
 const authClient = axios.create({
@@ -267,7 +268,7 @@ export const predictComplications = async (patientData) => {
 export const predictMortality = async (data) => {
     try {
         console.log('사망률 예측 실행:', data);
-        const response = await apiClient.post('ml-models/mortality/predict/', data);
+        const response = await apiClient.post('ml_models/predict/mortality/', data);
         console.log('사망률 예측 성공:', response.data);
         return response.data;
     } catch (error) {
@@ -369,7 +370,7 @@ export const fetchVitalsHistory = async (patientId, period = '1d') => {
 export const registerMortalityData = async (data) => {
     try {
         console.log('사망률 데이터 등록:', data);
-        const response = await apiClient.post('ml-models/mortality/register/', data);
+        const response = await apiClient.post('ml_models/register/mortality/', data);
         console.log('사망률 데이터 등록 성공:', response.data);
         return response.data;
     } catch (error) {
@@ -382,7 +383,7 @@ export const registerMortalityData = async (data) => {
 export const fetchMortalityHistory = async (patientUuid) => {
     try {
         console.log(`사망률 이력 조회: ${patientUuid}`);
-        const response = await apiClient.get(`ml-models/mortality/history/${patientUuid}/`);
+        const response = await apiClient.get(`ml_models/history/mortality/${patientUuid}/`);
         console.log('사망률 이력 조회 성공:', response.data);
         return response.data;
     } catch (error) {

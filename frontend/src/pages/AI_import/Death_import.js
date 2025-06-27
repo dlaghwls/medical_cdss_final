@@ -1,7 +1,7 @@
 // frontend/src/pages/AI_import/Death_import.js - 사망률 예측 기능 완전 구현
 
 import React, { useState, useEffect } from 'react';
-import aiService from '../../services/aiService';
+import djangoApiService from '../../services/djangoApiService';
 
 export const DeathImport = ({ selectedPatient, onPredictionComplete }) => {
     // ============= State 관리 =============
@@ -110,7 +110,7 @@ export const DeathImport = ({ selectedPatient, onPredictionComplete }) => {
         };
 
         try {
-            await aiService.registerMortalityData(submissionData);
+            await djangoApiService.registerMortalityData(submissionData);
             setSuccessMessage('사망률 예측용 데이터가 성공적으로 기록되었습니다.');
             setActiveTab('predict');
         } catch (err) {
@@ -140,7 +140,7 @@ export const DeathImport = ({ selectedPatient, onPredictionComplete }) => {
         };
 
         try {
-            const results = await aiService.predictMortality(predictionData);
+            const results = await djangoApiService.predictMortality(predictionData);
             setPredictionResults(results);
             setActiveTab('result');
             
@@ -167,127 +167,137 @@ export const DeathImport = ({ selectedPatient, onPredictionComplete }) => {
         fontSize: '14px',
         transition: 'all 0.2s ease-in-out',
         border: isActive ? '2px solid #dc3545' : '2px solid #dee2e6',
-        borderBottom: isActive ? '2px solid white' : '2px solid #dee2e6'
+        borderBottom: isActive ? '2px solid #fff' : '2px solid #dee2e6'
     });
 
-    const getRiskColor = (riskLevel) => {
-        const colors = {
-            'LOW': '#28a745',
-            'MODERATE': '#ffc107',
-            'HIGH': '#fd7e14',
-            'CRITICAL': '#dc3545'
-        };
-        return colors[riskLevel] || '#6c757d';
+    const getRiskLevelColor = (riskLevel) => {
+        switch (riskLevel) {
+            case 'HIGH':
+            case 'CRITICAL':
+                return '#dc3545';
+            case 'MEDIUM':
+                return '#ffc107';
+            case 'LOW':
+                return '#28a745';
+            default:
+                return '#6c757d';
+        }
     };
 
-    // ============= 렌더링 =============
+    const formatRiskLevel = (level) => {
+        const levelMap = {
+            'LOW': '낮음',
+            'MEDIUM': '보통',
+            'HIGH': '높음',
+            'CRITICAL': '매우 높음'
+        };
+        return levelMap[level] || level;
+    };
+
+    // ============= UI 렌더링 =============
     return (
-        <div style={{ 
-            padding: '20px',
-            backgroundColor: 'white',
-            borderRadius: '8px',
-            boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-        }}>
-            {/* 헤더 */}
-            <div style={{ 
-                marginBottom: '20px',
-                paddingBottom: '15px',
-                borderBottom: '2px solid #e9ecef'
-            }}>
-                <h3 style={{ margin: 0, color: '#dc3545' }}>30일 사망률 예측 시스템</h3>
-                <p style={{ margin: '5px 0 0 0', color: '#666' }}>
-                    <strong>환자:</strong> {selectedPatient?.display || '환자를 선택해주세요'}
-                </p>
+        <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '20px' }}>
+            <h3 style={{ textAlign: 'center', marginBottom: '20px', color: '#dc3545' }}>
+                30일 사망률 예측
+            </h3>
+            
+            {selectedPatient && (
+                <div style={{ backgroundColor: '#f8f9fa', padding: '10px', borderRadius: '8px', marginBottom: '20px' }}>
+                    <strong>선택된 환자:</strong> {selectedPatient.display || selectedPatient.name} (ID: {selectedPatient.uuid})
+                </div>
+            )}
+
+            {/* 탭 메뉴 */}
+            <div style={{ borderBottom: '2px solid #dee2e6', marginBottom: '20px' }}>
+                <button 
+                    style={tabStyle(activeTab === 'input')} 
+                    onClick={() => setActiveTab('input')}
+                >
+                    기록입력
+                </button>
+                <button 
+                    style={tabStyle(activeTab === 'predict')} 
+                    onClick={() => setActiveTab('predict')}
+                >
+                    예측실행
+                </button>
+                <button 
+                    style={tabStyle(activeTab === 'result')} 
+                    onClick={() => setActiveTab('result')}
+                >
+                    결과보기
+                </button>
             </div>
 
-            {/* 탭 네비게이션 */}
-            <div style={{ 
-                marginBottom: '20px',
-                borderBottom: '2px solid #dee2e6',
-                paddingBottom: '0'
-            }}>
-                <button onClick={() => setActiveTab('input')} style={tabStyle(activeTab === 'input')}>
-                    데이터 입력
-                </button>
-                <button onClick={() => setActiveTab('predict')} style={tabStyle(activeTab === 'predict')}>
-                    예측 실행
-                </button>
-                <button onClick={() => setActiveTab('result')} style={tabStyle(activeTab === 'result')} disabled={!predictionResults}>
-                    결과 보기
-                </button>
-            </div>
-
-            {/* 에러/성공 메시지 */}
+            {/* 오류/성공 메시지 */}
             {error && (
-                <div style={{ backgroundColor: '#f8d7da', color: '#721c24', padding: '15px', borderRadius: '8px', marginBottom: '20px', border: '1px solid #f5c6cb' }}>
-                    <strong>오류:</strong> {error}
+                <div style={{ backgroundColor: '#f8d7da', color: '#721c24', padding: '12px', borderRadius: '8px', marginBottom: '20px', border: '1px solid #f5c6cb' }}>
+                    {error}
                 </div>
             )}
-
+            
             {successMessage && (
-                <div style={{ backgroundColor: '#d4edda', color: '#155724', padding: '15px', borderRadius: '8px', marginBottom: '20px', border: '1px solid #c3e6cb' }}>
-                    <strong>성공:</strong> {successMessage}
+                <div style={{ backgroundColor: '#d4edda', color: '#155724', padding: '12px', borderRadius: '8px', marginBottom: '20px', border: '1px solid #c3e6cb' }}>
+                    {successMessage}
                 </div>
             )}
 
-            {/* 탭 컨텐츠 */}
-            <div style={{ backgroundColor: '#f8f9fa', padding: '20px', borderRadius: '0 8px 8px 8px', minHeight: '400px' }}>
-                {/* 데이터 입력 탭 */}
+            <div style={{ minHeight: '600px' }}>
+                {/* 기록입력 탭 */}
                 {activeTab === 'input' && (
                     <form onSubmit={handleDataSubmit}>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '30px' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '30px' }}>
                             {/* 환자 정보 */}
                             <div>
                                 <h4 style={{ marginBottom: '15px', color: '#dc3545' }}>환자 기본 정보</h4>
-                                <div style={{ display: 'grid', gap: '15px' }}>
+                                <div style={{ display: 'grid', gap: '10px' }}>
                                     <div>
-                                        <label>나이:</label>
+                                        <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>나이 (세):</label>
                                         <input 
                                             type="number" 
                                             name="age"
                                             value={patientInfo.age}
                                             onChange={handlePatientInfoChange}
+                                            style={{ width: '100%', padding: '8px', border: '1px solid #ced4da', borderRadius: '4px' }}
                                             required
-                                            style={{ width: '100%', padding: '8px', border: '1px solid #ced4da', borderRadius: '4px', marginTop: '5px' }}
                                         />
                                     </div>
                                     <div>
-                                        <label>성별:</label>
+                                        <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>성별:</label>
                                         <select 
                                             name="gender"
                                             value={patientInfo.gender}
                                             onChange={handlePatientInfoChange}
-                                            style={{ width: '100%', padding: '8px', border: '1px solid #ced4da', borderRadius: '4px', marginTop: '5px' }}
+                                            style={{ width: '100%', padding: '8px', border: '1px solid #ced4da', borderRadius: '4px' }}
                                         >
                                             <option value="M">남성</option>
                                             <option value="F">여성</option>
                                         </select>
                                     </div>
                                     <div>
-                                        <label>NIHSS 점수:</label>
+                                        <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>NIHSS 점수:</label>
                                         <input 
                                             type="number" 
                                             name="nihss_score"
                                             value={patientInfo.nihss_score}
                                             onChange={handlePatientInfoChange}
-                                            min="0" max="42"
-                                            style={{ width: '100%', padding: '8px', border: '1px solid #ced4da', borderRadius: '4px', marginTop: '5px' }}
+                                            style={{ width: '100%', padding: '8px', border: '1px solid #ced4da', borderRadius: '4px' }}
                                         />
                                     </div>
                                     <div>
-                                        <label>뇌졸중 유형:</label>
+                                        <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>뇌졸중 유형:</label>
                                         <select 
                                             name="stroke_type"
                                             value={patientInfo.stroke_type}
                                             onChange={handlePatientInfoChange}
-                                            style={{ width: '100%', padding: '8px', border: '1px solid #ced4da', borderRadius: '4px', marginTop: '5px' }}
+                                            style={{ width: '100%', padding: '8px', border: '1px solid #ced4da', borderRadius: '4px' }}
                                         >
                                             <option value="ischemic">허혈성</option>
                                             <option value="hemorrhagic">출혈성</option>
                                         </select>
                                     </div>
                                     <div>
-                                        <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                                        <label style={{ display: 'flex', alignItems: 'center', marginTop: '10px' }}>
                                             <input 
                                                 type="checkbox" 
                                                 name="reperfusion_treatment"
@@ -295,19 +305,19 @@ export const DeathImport = ({ selectedPatient, onPredictionComplete }) => {
                                                 onChange={handlePatientInfoChange}
                                                 style={{ marginRight: '8px' }}
                                             />
-                                            재관류 치료
+                                            재관류 치료 시행
                                         </label>
                                     </div>
                                     {patientInfo.reperfusion_treatment && (
                                         <div>
-                                            <label>재관류 시간 (시간):</label>
+                                            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>재관류 치료 시간 (시간):</label>
                                             <input 
                                                 type="number" 
                                                 step="0.5"
                                                 name="reperfusion_time"
                                                 value={patientInfo.reperfusion_time}
                                                 onChange={handlePatientInfoChange}
-                                                style={{ width: '100%', padding: '8px', border: '1px solid #ced4da', borderRadius: '4px', marginTop: '5px' }}
+                                                style={{ width: '100%', padding: '8px', border: '1px solid #ced4da', borderRadius: '4px' }}
                                             />
                                         </div>
                                     )}
@@ -319,50 +329,22 @@ export const DeathImport = ({ selectedPatient, onPredictionComplete }) => {
                                 <h4 style={{ marginBottom: '15px', color: '#dc3545' }}>활력징후</h4>
                                 <div style={{ display: 'grid', gap: '10px' }}>
                                     {Object.entries({
-                                        heart_rate: '심박수 (bpm)',
+                                        heart_rate: '심박수 (회/분)',
                                         systolic_bp: '수축기 혈압 (mmHg)',
                                         diastolic_bp: '이완기 혈압 (mmHg)',
                                         temperature: '체온 (°C)',
-                                        respiratory_rate: '호흡수 (/min)',
+                                        respiratory_rate: '호흡수 (회/분)',
                                         spo2: '산소포화도 (%)'
                                     }).map(([key, label]) => (
                                         <div key={key}>
-                                            <label>{label}:</label>
+                                            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>{label}:</label>
                                             <input 
                                                 type="number" 
                                                 step={key === 'temperature' ? '0.1' : '1'}
                                                 name={key}
                                                 value={vitalSigns[key]}
                                                 onChange={handleVitalSignChange}
-                                                style={{ width: '100%', padding: '8px', border: '1px solid #ced4da', borderRadius: '4px', marginTop: '5px' }}
-                                            />
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-
-                            {/* 검사결과 */}
-                            <div>
-                                <h4 style={{ marginBottom: '15px', color: '#dc3545' }}>검사결과</h4>
-                                <div style={{ display: 'grid', gap: '10px' }}>
-                                    {Object.entries({
-                                        wbc: '백혈구 (×10³/μL)',
-                                        hemoglobin: '혈색소 (g/dL)',
-                                        creatinine: '크레아티닌 (mg/dL)',
-                                        bun: 'BUN (mg/dL)',
-                                        glucose: '혈당 (mg/dL)',
-                                        sodium: '나트륨 (mEq/L)',
-                                        potassium: '칼륨 (mEq/L)'
-                                    }).map(([key, label]) => (
-                                        <div key={key}>
-                                            <label>{label}:</label>
-                                            <input 
-                                                type="number" 
-                                                step="0.1"
-                                                name={key}
-                                                value={labResults[key]}
-                                                onChange={handleLabResultChange}
-                                                style={{ width: '100%', padding: '8px', border: '1px solid #ced4da', borderRadius: '4px', marginTop: '5px' }}
+                                                style={{ width: '100%', padding: '8px', border: '1px solid #ced4da', borderRadius: '4px' }}
                                             />
                                         </div>
                                     ))}
@@ -370,13 +352,41 @@ export const DeathImport = ({ selectedPatient, onPredictionComplete }) => {
                             </div>
                         </div>
 
+                        {/* 검사결과 */}
+                        <div style={{ marginTop: '30px' }}>
+                            <h4 style={{ marginBottom: '15px', color: '#dc3545' }}>검사결과</h4>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px' }}>
+                                {Object.entries({
+                                    wbc: '백혈구 (×10³/μL)',
+                                    hemoglobin: '혈색소 (g/dL)',
+                                    creatinine: '크레아티닌 (mg/dL)',
+                                    bun: 'BUN (mg/dL)',
+                                    glucose: '혈당 (mg/dL)',
+                                    sodium: '나트륨 (mEq/L)',
+                                    potassium: '칼륨 (mEq/L)'
+                                }).map(([key, label]) => (
+                                    <div key={key}>
+                                        <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>{label}:</label>
+                                        <input 
+                                            type="number" 
+                                            step="0.1"
+                                            name={key}
+                                            value={labResults[key]}
+                                            onChange={handleLabResultChange}
+                                            style={{ width: '100%', padding: '8px', border: '1px solid #ced4da', borderRadius: '4px' }}
+                                        />
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
                         {/* 기록 시간 및 비고 */}
-                        <div style={{ marginTop: '20px', display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '20px' }}>
+                        <div style={{ marginTop: '30px', display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '20px' }}>
                             <div>
                                 <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>기록 날짜/시간:</label>
                                 <input 
                                     type="datetime-local" 
-                                    value={recordedAt} 
+                                    value={recordedAt}
                                     onChange={(e) => setRecordedAt(e.target.value)}
                                     style={{ width: '100%', padding: '8px', border: '1px solid #ced4da', borderRadius: '4px' }}
                                 />
@@ -384,28 +394,26 @@ export const DeathImport = ({ selectedPatient, onPredictionComplete }) => {
                             <div>
                                 <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>비고:</label>
                                 <textarea 
-                                    value={notes} 
+                                    value={notes}
                                     onChange={(e) => setNotes(e.target.value)}
-                                    placeholder="추가 정보나 특이사항을 입력하세요"
-                                    rows={3}
-                                    style={{ width: '100%', padding: '8px', border: '1px solid #ced4da', borderRadius: '4px', resize: 'vertical' }}
+                                    style={{ width: '100%', padding: '8px', border: '1px solid #ced4da', borderRadius: '4px', minHeight: '60px' }}
+                                    placeholder="추가 정보나 특이사항을 입력하세요..."
                                 />
                             </div>
                         </div>
 
-                        {/* 제출 버튼 */}
-                        <div style={{ marginTop: '20px' }}>
+                        <div style={{ textAlign: 'center', marginTop: '30px' }}>
                             <button 
                                 type="submit" 
                                 disabled={loading || !selectedPatient}
                                 style={{ 
-                                    backgroundColor: loading ? '#6c757d' : '#dc3545',
+                                    backgroundColor: loading ? '#6c757d' : '#dc3545', 
                                     color: 'white', 
-                                    padding: '12px 24px', 
                                     border: 'none', 
-                                    borderRadius: '6px', 
-                                    cursor: loading ? 'not-allowed' : 'pointer',
+                                    padding: '12px 30px', 
+                                    borderRadius: '8px', 
                                     fontSize: '16px',
+                                    cursor: loading ? 'not-allowed' : 'pointer',
                                     fontWeight: 'bold'
                                 }}
                             >
@@ -423,7 +431,7 @@ export const DeathImport = ({ selectedPatient, onPredictionComplete }) => {
                             입력된 환자 데이터를 바탕으로 30일 사망률을 예측합니다.
                         </p>
                         
-                        <div style={{ backgroundColor: 'white', padding: '20px', borderRadius: '8px', marginBottom: '30px' }}>
+                        <div style={{ backgroundColor: 'white', padding: '20px', borderRadius: '8px', marginBottom: '30px', border: '1px solid #dee2e6' }}>
                             <h5>입력된 데이터 요약</h5>
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '20px', textAlign: 'left' }}>
                                 <div>
@@ -457,94 +465,68 @@ export const DeathImport = ({ selectedPatient, onPredictionComplete }) => {
                             onClick={handlePredictionSubmit}
                             disabled={predicting || !selectedPatient}
                             style={{ 
-                                backgroundColor: predicting ? '#6c757d' : '#dc3545',
+                                backgroundColor: predicting ? '#6c757d' : '#dc3545', 
                                 color: 'white', 
-                                padding: '15px 40px', 
                                 border: 'none', 
+                                padding: '15px 40px', 
                                 borderRadius: '8px', 
-                                cursor: predicting ? 'not-allowed' : 'pointer',
                                 fontSize: '18px',
-                                fontWeight: 'bold',
-                                boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+                                cursor: predicting ? 'not-allowed' : 'pointer',
+                                fontWeight: 'bold'
                             }}
                         >
-                            {predicting ? '예측 중...' : '⚡ AI 사망률 예측 시작'}
+                            {predicting ? '예측 실행 중...' : '사망률 예측 실행'}
                         </button>
                     </div>
                 )}
 
-                {/* 결과 보기 탭 */}
+                {/* 결과보기 탭 */}
                 {activeTab === 'result' && (
                     <div>
                         {predictionResults ? (
-                            <div>
-                                <h4 style={{ marginBottom: '20px', color: '#dc3545' }}>30일 사망률 예측 결과</h4>
-                                
-                                {/* 주요 결과 카드 */}
-                                <div style={{ 
-                                    display: 'grid', 
-                                    gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', 
-                                    gap: '20px',
-                                    marginBottom: '30px'
-                                }}>
-                                    {/* 사망률 */}
+                            <div style={{ backgroundColor: 'white', padding: '20px', borderRadius: '8px', border: '1px solid #dee2e6' }}>
+                                <h4 style={{ textAlign: 'center', marginBottom: '30px', color: '#dc3545' }}>
+                                    30일 사망률 예측 결과
+                                </h4>
+
+                                {/* 주요 예측 결과 */}
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '30px' }}>
                                     <div style={{
-                                        backgroundColor: 'white',
+                                        backgroundColor: '#f8f9fa',
                                         padding: '20px',
-                                        borderRadius: '12px',
-                                        boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-                                        border: `3px solid ${getRiskColor(predictionResults.risk_level)}`,
-                                        textAlign: 'center'
+                                        borderRadius: '8px',
+                                        textAlign: 'center',
+                                        border: '2px solid #dee2e6'
                                     }}>
-                                        <h5 style={{ margin: '0 0 15px 0', color: '#333' }}>30일 사망률</h5>
+                                        <h5 style={{ margin: '0 0 10px 0', color: '#495057' }}>30일 사망률</h5>
                                         <div style={{ 
-                                            fontSize: '36px', 
+                                            fontSize: '2rem', 
                                             fontWeight: 'bold', 
-                                            color: getRiskColor(predictionResults.risk_level),
-                                            marginBottom: '10px'
+                                            color: getRiskLevelColor(predictionResults.risk_level) 
                                         }}>
                                             {(predictionResults.mortality_30_day * 100).toFixed(1)}%
                                         </div>
-                                        <div style={{
-                                            backgroundColor: getRiskColor(predictionResults.risk_level),
-                                            color: 'white',
-                                            padding: '6px 12px',
-                                            borderRadius: '20px',
-                                            fontSize: '14px',
-                                            fontWeight: 'bold',
-                                            display: 'inline-block'
-                                        }}>
-                                            위험도: {aiService.translateRiskLevel(predictionResults.risk_level)}
-                                        </div>
                                     </div>
-
-                                    {/* 신뢰도 */}
                                     <div style={{
-                                        backgroundColor: 'white',
+                                        backgroundColor: '#f8f9fa',
                                         padding: '20px',
-                                        borderRadius: '12px',
-                                        boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-                                        border: '2px solid #007bff',
-                                        textAlign: 'center'
+                                        borderRadius: '8px',
+                                        textAlign: 'center',
+                                        border: '2px solid #dee2e6'
                                     }}>
-                                        <h5 style={{ margin: '0 0 15px 0', color: '#333' }}>예측 신뢰도</h5>
+                                        <h5 style={{ margin: '0 0 10px 0', color: '#495057' }}>위험도</h5>
                                         <div style={{ 
-                                            fontSize: '32px', 
+                                            fontSize: '1.5rem', 
                                             fontWeight: 'bold', 
-                                            color: '#007bff',
-                                            marginBottom: '10px'
+                                            color: getRiskLevelColor(predictionResults.risk_level) 
                                         }}>
-                                            {(predictionResults.confidence * 100).toFixed(1)}%
-                                        </div>
-                                        <div style={{ fontSize: '12px', color: '#666' }}>
-                                            모델 정확도: {(predictionResults.model_performance?.auc * 100).toFixed(1)}%
+                                            {formatRiskLevel(predictionResults.risk_level)}
                                         </div>
                                     </div>
                                 </div>
 
-                                {/* 위험 요인 및 권장사항 */}
+                                {/* 위험 요인 및 보호 요인 */}
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' }}>
-                                    {/* 위험 요인 */}
                                     <div style={{
                                         backgroundColor: '#fff5f5',
                                         padding: '20px',
@@ -561,7 +543,6 @@ export const DeathImport = ({ selectedPatient, onPredictionComplete }) => {
                                         </ul>
                                     </div>
 
-                                    {/* 보호 요인 */}
                                     <div style={{
                                         backgroundColor: '#f0fff4',
                                         padding: '20px',

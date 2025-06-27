@@ -1,30 +1,27 @@
-import React, { useState, useEffect, useCallback } from 'react';
+// src/components/Common/MainView.js
+import React, { useCallback } from 'react';
 import { fetchPatientDetails } from '../../services/djangoApiService';
-import { MainPage } from '../../pages/Main'; 
+import { MainPage } from '../../pages/Main';
 
-// TODO: [리팩토링 후 삭제 예정] - LabResultsView의 모든 기능이 개별 페이지/뷰로 분리되면 이 import는 삭제합니다.
 import LabResultsView from './LabResultsView';
-
-// AI 입력 폼 컴포넌트 임포트 (기존 유지)
 import ComplicationManagementView from '../../pages/ComplicationManagementView';
 import DeathManagementView from '../../pages/DeathManagementView';
 import GeneManagementView from '../../pages/GeneManagementView';
 import SOD2ManagementView from '../../pages/SOD2ManagementView';
-import SegmentationBrowser from '../segmentation/SegmentationBrowser'; // 유정우넌할수있어
-//lab
+import SegmentationBrowser from '../segmentation/SegmentationBrowser';
 import LabPage from '../Lab/LabPage';
-
-//pacs
 import PacsViewer from '../pacs/PacsViewer';
-
-//vital
 import VitalSignsPage from '../Vital/VitalSignsPage';
 
-
-// MainView 컴포넌트
-const MainView = ({ currentViewId, user, onViewChange, selectedPatient, onSelectedPatientUpdated, onBackToPatientList }) => {
-    // 역할별 기능이 없어지면서 currentPredictionModule 상태는 더 이상 필요 없습니다.
-    // const [currentPredictionModule, setCurrentPredictionModule] = useState(null);
+const MainView = ({
+    currentViewId,
+    user,
+    onViewChange,
+    selectedPatient,
+    onSelectedPatientUpdated,
+    onBackToPatientList,
+    style = {} // style props 받기
+}) => {
 
     const handleReturnToPatientList = () => {
         if (onBackToPatientList) {
@@ -33,7 +30,6 @@ const MainView = ({ currentViewId, user, onViewChange, selectedPatient, onSelect
     };
 
     const handleRefreshSelectedPatient = useCallback(async (patientUuid) => {
-        console.log("[MainView] Refreshing selected patient details:", patientUuid);
         try {
             const updatedPatientDetails = await fetchPatientDetails(patientUuid);
             if (onSelectedPatientUpdated) {
@@ -49,7 +45,7 @@ const MainView = ({ currentViewId, user, onViewChange, selectedPatient, onSelect
     const renderContentOrPrompt = (Component, props = {}) => {
         if (!selectedPatient) {
             return (
-                <div style={{textAlign: 'center', padding: '50px'}}>
+                <div style={{ textAlign: 'center', padding: '50px' }}>
                     <h3>환자 정보가 필요합니다.</h3>
                     <p>왼쪽 사이드바의 환자 목록에서 환자를 선택해주세요.</p>
                 </div>
@@ -67,7 +63,6 @@ const MainView = ({ currentViewId, user, onViewChange, selectedPatient, onSelect
         case 'vital_signs':
             content = renderContentOrPrompt(VitalSignsPage);
             break;
-        // 유정우넌할수있어
         case 'pacs_viewer':
             content = renderContentOrPrompt(PacsViewer);
             break;
@@ -76,7 +71,6 @@ const MainView = ({ currentViewId, user, onViewChange, selectedPatient, onSelect
             break;
         case 'lab':
             content = renderContentOrPrompt(LabPage);
-            
             break;
         case 'ai_complication_import':
             content = renderContentOrPrompt(ComplicationManagementView);
@@ -90,10 +84,9 @@ const MainView = ({ currentViewId, user, onViewChange, selectedPatient, onSelect
         case 'ai_sod2_import':
             content = renderContentOrPrompt(SOD2ManagementView);
             break;
-
         default:
             content = (
-                <div style={{textAlign: 'center', padding: '50px'}}>
+                <div style={{ textAlign: 'center', padding: '50px' }}>
                     <h3>페이지를 찾을 수 없습니다.</h3>
                     <p>올바른 메뉴를 선택해주세요.</p>
                     <button onClick={() => onViewChange('main_dashboard')} style={{ padding: '10px 20px', backgroundColor: '#007bff', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', marginTop: '20px' }}>
@@ -103,8 +96,13 @@ const MainView = ({ currentViewId, user, onViewChange, selectedPatient, onSelect
             );
             break;
     }
+
     return (
-        <div className="main-view" style={{ flexGrow: 1, padding: '20px', overflowY: 'auto' }}>
+        <div className="main-view" style={{
+            ...style, // 🔥 핵심: 외부에서 전달된 style 반영
+            padding: '20px',
+            overflowY: 'auto'
+        }}>
             {content}
         </div>
     );

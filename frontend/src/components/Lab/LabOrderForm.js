@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { fetchTestTypes, createLabOrder } from '../../services/labApiService';
 
-const LabOrderForm = ({ selectedPatient, user }) => {
+const LabOrderForm = ({ selectedPatient, user, onOrderSuccess }) => {
   const [testTypes, setTestTypes] = useState([]);
   const [selectedTestType, setSelectedTestType] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -35,6 +35,16 @@ const LabOrderForm = ({ selectedPatient, user }) => {
       .then(() => {
         setMessage("검사 요청이 성공적으로 등록되었습니다.");
         setSelectedTestType('');
+
+        if (onOrderSuccess) {
+          console.log("LabOrderForm: Order created successfully, calling onOrderSuccess.");
+          
+          // testTypes 배열에서 현재 선택된 UUID(selectedTestType)에 해당하는 전체 객체를 찾습니다.
+          const orderedTestTypeObject = testTypes.find(type => type.pk === selectedTestType);
+
+          // 찾은 전체 객체를 onOrderSuccess 콜백으로 전달합니다.
+          onOrderSuccess(orderedTestTypeObject); 
+        }       
       })
       .catch(error => {
         setMessage(`오류 발생: ${error.message}`);

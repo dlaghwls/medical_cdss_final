@@ -19,6 +19,7 @@ export const VitalSummary = ({ patientId }) => {
             setLoading(true);
             setError(null);
             try {
+                // 이 함수는 이제 aiService.js에서 올바르게 동작합니다.
                 const history = await aiService.fetchVitalsHistory(patientId, 'all');
                 
                 if (history && history.length > 0) {
@@ -44,7 +45,7 @@ export const VitalSummary = ({ patientId }) => {
     if (error) return <p style={{ color: 'red' }}>{error}</p>;
     if (!vitals) return <p>데이터 없음</p>;
 
-    // ★★★★★ 데이터가 measurements 객체 안에 있으므로, 이 객체에 접근합니다. ★★★★★
+    // ★★★★★ vitals 객체 안의 'measurements' 객체에서 값을 가져옵니다. ★★★★★
     const vitalMeasurements = vitals.measurements || {};
 
     return (

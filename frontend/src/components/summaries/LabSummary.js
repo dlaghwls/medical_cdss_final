@@ -9,24 +9,18 @@ export const LabSummary = ({ patientId }) => {
     const [error, setError] = useState(null);
 
     useEffect(() => {
-        if (!patientId) {
-            setLoading(false);
-            setLab(null);
-            return;
-        }
+        if (!patientId) { setLoading(false); setLab(null); return; }
 
         const fetchLatestLab = async () => {
-            setLoading(true);
-            setError(null);
+            setLoading(true); setError(null);
             try {
-                // 위에서 추가한 fetchLabHistory 함수를 호출합니다.
                 const history = await aiService.fetchLabHistory(patientId);
                 
                 if (history && history.length > 0) {
                     const sorted = history.sort((a, b) => new Date(b.recorded_at) - new Date(a.recorded_at));
                     setLab(sorted[0]);
                 } else {
-                    setLab(null);
+                    setLab(null); 
                 }
             } catch (err) {
                 setError('LAB 정보 로딩 실패');
@@ -35,7 +29,6 @@ export const LabSummary = ({ patientId }) => {
                 setLoading(false);
             }
         };
-
         fetchLatestLab();
     }, [patientId]);
 

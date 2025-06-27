@@ -2,6 +2,8 @@ FROM python:3.11
 
 WORKDIR /app
 
+ENV PYTHONPATH=/app:$PYTHONPATH 
+
 COPY requirements.txt .
 
 # 유정우 제발 정신차려 (작동 굿)

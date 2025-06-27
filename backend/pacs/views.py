@@ -724,30 +724,26 @@ class NiftiToDicomView(APIView):
             
             nifti_img = nib.load(temp_nifti_path)
             img_data = nifti_img.get_fdata()
-
+            # NIfTI 헤더에서 voxel spacing (mm) 정보 가져오기
+            x_spacing, y_spacing, z_spacing = nifti_img.header.get_zooms()[:3]
             # [핵심 수정] 픽셀 데이터의 통계를 기반으로 Window/Level 및 Rescale 정보 계산
-            pixel_min = np.min(img_data)
-            pixel_max = np.max(img_data)
-            
-            # Rescale Slope/Intercept는 원본 데이터의 실제 값을 보존하는 데 사용됩니다.
-            # 여기서는 간단히 1과 0으로 설정하여 저장된 값=실제 값으로 만듭니다.
+            # 0~65535 범위를 그대로 사용
+            pixel_min = 0
+            pixel_max = 255
             rescale_slope = 1.0
             rescale_intercept = 0.0
 
-            # Window/Level은 실제 픽셀 값을 기준으로 계산합니다.
-            window_width = float(pixel_max - pixel_min)
-            window_center = float(pixel_min + window_width / 2)
-            
-            # 0으로 나누기 방지
-            if window_width == 0:
-                window_width = 1.0
+            window_width = float(pixel_max - pixel_min)       # 65535
+            window_center = float((pixel_max + pixel_min) / 2) # 32767.5
 
             study_uid = pydicom.uid.generate_uid()
             series_uid = pydicom.uid.generate_uid()
             orthanc_instance_ids = []
 
             for i in range(img_data.shape[2]):
-                slice_data = img_data[:, :, i].astype(np.int16) # 부호 있는 정수로 변환
+                # 이 한 줄만 바꿉니다 — 0/1 바이너리 마스크를 0~65535 범위로 늘려요
+                mask      = (img_data[:, :, i] > 0).astype(np.uint8)
+                slice_data = (mask * 255).astype(np.uint8)
 
                 file_meta = FileMetaDataset()
                 file_meta.MediaStorageSOPClassUID = pydicom.uid.MRImageStorage
@@ -774,23 +770,56 @@ class NiftiToDicomView(APIView):
                 ds.SamplesPerPixel = 1
                 ds.PhotometricInterpretation = "MONOCHROME2"
                 ds.Rows, ds.Columns = slice_data.shape
-                ds.BitsAllocated = 16
-                ds.BitsStored = 16 # 데이터를 int16으로 변환했으므로 16비트 사용
-                ds.HighBit = 15
-                ds.PixelRepresentation = 1 # 부호 있는 정수(signed)
+                ds.BitsAllocated = 8
+                ds.BitsStored = 8 # 데이터를 int16으로 변환했으므로 16비트 사용
+                ds.HighBit = 7
+                ds.PixelRepresentation = 0 # 부호 있는 정수(signed)
                 ds.PixelData = slice_data.tobytes()
+
+                ds.WindowCenter          = 127.5
+                ds.WindowWidth           = 255.0
+
+                # ─────────── Spatial 정보 ───────────
+                # (0028,0030) Pixel Spacing (mm) : [row spacing, column spacing]
+                ds.PixelSpacing = [str(y_spacing), str(x_spacing)]
+
+                # (0020,0032) Image Position (Patient) : x, y, z of first pixel
+                # 여기서는 slice index에 따른 z 위치 계산
+                ds.ImagePositionPatient = [
+                    "0",  # x
+                    "0",  # y
+                    str(i * z_spacing)  # z
+                ]
+
+                # (0020,0037) Image Orientation (Patient)
+                # 기본적으로 행 방향이 X축, 열 방향이 Y축이라면
+                ds.ImageOrientationPatient = [
+                    "1", "0", "0",  # X 방향 cosines
+                    "0", "1", "0"   # Y 방향 cosines
+                ]
+                # (0018,0050) Slice Thickness
+                ds.SliceThickness = str(z_spacing)
+                # (0018,0088) Spacing Between Slices
+                ds.SpacingBetweenSlices = str(z_spacing)
+
+                # (0020,0052) Frame of Reference UID (묶음 식별자)
+                ds.FrameOfReferenceUID = study_uid
+
+                # (0020,1041) Slice Location (Z 좌표)
+                ds.SliceLocation = str(i * z_spacing)
                 
                 # VOI LUT Module & Rescale Module
                 ds.RescaleIntercept = str(rescale_intercept)
                 ds.RescaleSlope = str(rescale_slope)
-                ds.WindowCenter = str(window_center)
-                ds.WindowWidth = str(window_width)
                 
                 temp_dcm_path = os.path.join(temp_dicom_dir, f"slice_{i}.dcm")
                 ds.save_as(temp_dcm_path)
-
-                with open(temp_dcm_path, 'rb') as f:
-                    resp = requests.post(f"{settings.ORTHANC_URL}/instances", data=f.read(), auth=ORTHANC_AUTH)
+                with open(temp_dcm_path,'rb') as f:
+                    resp = requests.post(
+                        f"{settings.ORTHANC_URL}/instances",
+                        data=f.read(),
+                        auth=ORTHANC_AUTH,
+                    )
                     resp.raise_for_status()
                     orthanc_instance_ids.append(resp.json()['ID'])
             

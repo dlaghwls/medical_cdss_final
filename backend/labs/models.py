@@ -2,6 +2,11 @@ import uuid
 from django.db import models
 from openmrs_integration.models import OpenMRSPatient 
 
+STATUS_CHOICES = [
+    ('pending', 'Pending Input'),       # 결과 입력 대기 중
+    ('completed', 'Completed'),         # 결과 입력 완료
+    ('cancelled', 'Cancelled'),         # 취소됨
+]
 
 class LabTestType(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -35,9 +40,24 @@ class LabOrder(models.Model):
     reported_at = models.DateTimeField(null=True, blank=True)
     performed_by = models.CharField(max_length=100)
     lab_location = models.CharField(max_length=100)
+    status = models.CharField(
+        max_length=10,
+        choices=STATUS_CHOICES,
+        default='pending', # 기본값은 'pending'
+        help_text="Lab order status"
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True, help_text="주문 생성 시간")
+    
 
     def __str__(self):
+        collected_date = self.collected_at.date() if self.collected_at else '날짜 미정'
         return f"{self.patient.display_name} - {self.test_type.name} ({self.collected_at.date()})"
+
+    class Meta:
+        verbose_name = "Lab Order"
+        verbose_name_plural = "Lab Orders"
+        ordering = ['-created_at']
 
 
 class LabResult(models.Model):

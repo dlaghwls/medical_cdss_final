@@ -1091,7 +1091,6 @@ def get_mortality_history(request, patient_uuid):
             {'error': f'이력 조회 중 오류가 발생했습니다: {str(e)}'}, 
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
-
 # ============= 기존 API 호환성 유지 =============
 
 @api_view(['POST'])
