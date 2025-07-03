@@ -73,7 +73,7 @@ export const MortalityResult = ({ predictionData, analysisTime, showAsModal = fa
                     alignItems: 'center',
                     gap: '8px'
                 }}>
-                    💀 30일 사망률 예측 결과
+                    예후 예측 결과
                 </h3>
                 {analysisTime && (
                     <p style={{ 
@@ -110,7 +110,7 @@ export const MortalityResult = ({ predictionData, analysisTime, showAsModal = fa
                     color: '#333',
                     fontSize: '18px'
                 }}>
-                    30일 사망률
+                    30일 이내 사망할 확률
                 </h4>
                 
                 <div style={{ 

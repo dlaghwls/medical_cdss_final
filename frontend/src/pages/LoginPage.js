@@ -133,6 +133,11 @@ const LoginPage = () => {
                 회원가입
               </Link>
             </div>
+            <div className={styles.informationLinkContainer}>
+              <Link to="/information" className={styles.informationLink}>
+                 StrokeCare+ 소개
+              </Link>
+            </div>
           </>
         )}
       </div>

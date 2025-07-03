@@ -1,0 +1,113 @@
+/* VitalSignsPage.module.css */
+
+.container {
+    padding: 20px;
+}
+
+.container h3 {
+    margin-bottom: 20px;
+}
+
+.formSection,
+.chartSection {
+    border: 1px solid #ccc;
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 30px;
+    background-color: white;
+}
+
+.formSection h4,
+.chartSection h4 {
+    margin-top: 0;
+    margin-bottom: 20px;
+}
+
+.formGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+}
+
+.formGrid label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+    color: #555;
+}
+
+.formInput {
+    width: 95%; /* Adjusting for padding and border */
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    box-sizing: border-box; /* Include padding and border in the element's total width and height */
+}
+
+.bpInputs {
+    display: flex;
+    align-items: center;
+}
+
+.bpInput {
+    width: 45%; /* Adjusted for the separator */
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    box-sizing: border-box;
+}
+
+.bpSeparator {
+    margin: 0 5px;
+    font-weight: bold;
+}
+
+.notesInput {
+    height: 40px; /* Specific height for notes textarea */
+    resize: vertical; /* Allow vertical resizing */
+}
+
+.submitButton {
+    margin-top: 20px;
+    padding: 10px 20px;
+    background-color: #28a745;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: background-color 0.2s ease;
+}
+
+.submitButton:hover {
+    background-color: #218838;
+}
+
+.submitButton:disabled {
+    background-color: #cccccc;
+    cursor: not-allowed;
+}
+
+.errorMessage {
+    color: red;
+    margin-top: 10px;
+    white-space: pre-wrap;
+    border: 1px solid red;
+    padding: 8px;
+    border-radius: 4px;
+    background-color: #ffebeb;
+}
+
+.successMessage {
+    color: green;
+    margin-top: 10px;
+    border: 1px solid green;
+    padding: 8px;
+    border-radius: 4px;
+    background-color: #ebffe9;
+}
+
+.chartContainer {
+    height: 400px;
+    width: 100%; /* Ensure chart takes full width of its container */
+}

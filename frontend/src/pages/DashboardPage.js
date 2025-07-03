@@ -6,6 +6,9 @@ import PatientSidebar from '../components/Common/PatientSidebar';
 import MainView from '../components/Common/MainView';
 import { useAuth } from '../contexts/AuthContext';
 
+// DashboardPage 전용 CSS Modules 임포트
+import styles from '../styles/pages/DashboardPage.module.css';
+
 const DashboardPage = () => {
     const { user } = useAuth();
     const [currentViewId, setCurrentViewId] = useState('main_dashboard');
@@ -14,9 +17,10 @@ const DashboardPage = () => {
 
     const handleMenuClick = useCallback((viewId) => {
         setCurrentViewId(viewId);
-        if (viewId === 'main_dashboard') {
-            setSelectedPatient(null);
-        }
+        // 추교상넌할수있어
+       // if (viewId === 'main_dashboard') {
+       //     setSelectedPatient(null);
+       // }
     }, []);
 
     const handlePatientSelect = useCallback((patient) => {
@@ -36,9 +40,11 @@ const DashboardPage = () => {
     }, []);
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
+        // 최상위 div에 CSS Module 클래스 적용
+        <div className={styles.dashboardContainer}>
             <Header user={user} />
-            <div style={{ display: 'flex', flexGrow: 1, overflow: 'hidden' }}>
+            {/* 컨텐츠 영역 div에 CSS Module 클래스 적용 */}
+            <div className={styles.contentArea}>
                 <PatientSidebar
                     onPatientSelect={handlePatientSelect}
                     onPatientRegistered={handlePatientRegistered}
@@ -56,13 +62,6 @@ const DashboardPage = () => {
                     onViewChange={setCurrentViewId}
                     onSelectedPatientUpdated={handleSelectedPatientUpdate}
                     onBackToPatientList={handleBackToPatientList}
-                    style={{
-                        flexGrow: 1,
-                        display: 'flex',
-                        flexDirection: 'column',
-                        overflow: 'hidden',
-                        height: '100%' // 🔥 핵심 추가
-                    }}
                 />
             </div>
         </div>

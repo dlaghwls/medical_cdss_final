@@ -314,7 +314,7 @@ export const assessSOD2Status = async (assessmentData) => {
 
 export const fetchSOD2Assessments = async (patientUuid) => {
     try {
-        const response = await apiClient.get(`ml/patients/${patientUuid}/sod2/assessments/`);
+        const response = await apiClient.get(`ml/patient/${patientUuid}/sod2/assessments/`);
         return response.data.assessments || [];
     } catch (error) {
         console.error('SOD2 평가 이력 조회 API 오류:', error);
@@ -324,7 +324,7 @@ export const fetchSOD2Assessments = async (patientUuid) => {
 
 export const fetchLatestSOD2Assessment = async (patientUuid) => {
     try {
-        const response = await apiClient.get(`ml/patients/${patientUuid}/sod2/latest/`);
+        const response = await apiClient.get(`ml/patient/${patientUuid}/sod2/latest/`);
         return response.data;
     } catch (error) {
         if (error.response?.status === 404) {

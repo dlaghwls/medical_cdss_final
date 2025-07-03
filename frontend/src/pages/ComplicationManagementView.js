@@ -309,7 +309,7 @@ const ComplicationManagementView = ({ selectedPatient }) => {
                     결과 보기
                 </button>
                 <button style={tabStyle(activeTab === 'history')} onClick={() => setActiveTab('history')}>
-                    과거 기록
+                    투약 기록
                 </button>
             </div>
 

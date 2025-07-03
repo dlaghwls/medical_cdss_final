@@ -486,7 +486,7 @@ export const DeathImport = ({ selectedPatient, onPredictionComplete }) => {
                         {predictionResults ? (
                             <div style={{ backgroundColor: 'white', padding: '20px', borderRadius: '8px', border: '1px solid #dee2e6' }}>
                                 <h4 style={{ textAlign: 'center', marginBottom: '30px', color: '#dc3545' }}>
-                                    30일 사망률 예측 결과
+                                    예후 예측 결과
                                 </h4>
 
                                 {/* 주요 예측 결과 */}

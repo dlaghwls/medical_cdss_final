@@ -10,6 +10,11 @@ from .views import (
     NiftiUploadView, # 유정우넌할수있어
     ListPatientSessionsView, # 유정우넌할수있어
     NiftiToDicomView, # 유정우넌할수있어
+    NiftiToDicomBundleView, # 유정우가추가함 seg 2x2
+    FileDeleteAPIView,
+    SessionDeleteAPIView,
+    SegmentationAPIView, 
+    TaskStatusAPIView
 )
 
 urlpatterns = [
@@ -37,4 +42,16 @@ urlpatterns = [
     path('patient-sessions/<str:patient_uuid>/', ListPatientSessionsView.as_view(), name='list-patient-sessions'),
     # 유정우넌할수있어 nnunet성공이후 추가
     path('view-nifti-as-dicom/', NiftiToDicomView.as_view(), name='view-nifti-as-dicom'),
-]
+    # 유정우가추가함 seg 2x2
+    path('nifti-to-dicom-bundle/', NiftiToDicomBundleView.as_view(), name='nifti-to-dicom-bundle'),
+    # 리액트 화면에서 GCS 파일 삭제 기능
+    path('file', FileDeleteAPIView.as_view(), name='pacs-file-delete'),
+    # 리액트 화면에서 GCS 폴더 제거
+    path('session', SessionDeleteAPIView.as_view(), name='pacs-session-delete'),
+        # 분할 작업을 시작하는 경로
+    path('segment/', SegmentationAPIView.as_view(), name='start-segmentation'),
+    
+    # [새로운 길] task_id를 주소로 받는 상태 보고 경로
+    path('segment/status/<str:task_id>/', TaskStatusAPIView.as_view(), name='task-status'),
+]   
+

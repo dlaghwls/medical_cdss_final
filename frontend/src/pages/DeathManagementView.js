@@ -182,7 +182,7 @@ const DeathManagementView = ({ selectedPatient, onBackToPatientList }) => {
             const predictionData = await djangoApiService.predictMortality(submissionData);
             
             setPredictionResults(predictionData);
-            setSuccessMessage('사망률 데이터가 성공적으로 등록되고 예측이 완료되었습니다.');
+            setSuccessMessage('예후 예측 데이터가 성공적으로 등록되고 예측이 완료되었습니다.');
             
             // 예측 탭으로 이동
             setActiveTab('results');
@@ -230,7 +230,7 @@ const DeathManagementView = ({ selectedPatient, onBackToPatientList }) => {
                 marginBottom: '20px',
                 border: '1px solid #90caf9'
             }}>
-                <h3 style={{ margin: '0 0 10px 0', color: '#1565c0' }}>30일 사망률 예측 시스템</h3>
+                <h3 style={{ margin: '0 0 10px 0', color: '#1565c0' }}>예후 예측 시스템</h3>
                 <p style={{ margin: '0', color: '#333' }}>
                     <strong>대상 환자:</strong> {selectedPatient.display || '이름 없음'} 
                     <span style={{ marginLeft: '20px' }}>
@@ -594,7 +594,7 @@ const DeathManagementView = ({ selectedPatient, onBackToPatientList }) => {
                                     cursor: loading || predicting ? 'not-allowed' : 'pointer'
                                 }}
                             >
-                                {loading || predicting ? '처리 중...' : '데이터 저장 및 사망률 예측 실행'}
+                                {loading || predicting ? '처리 중...' : '데이터 저장 및 예측 실행'}
                             </button>
                         </div>
                     </form>
@@ -603,7 +603,7 @@ const DeathManagementView = ({ selectedPatient, onBackToPatientList }) => {
                 {/* 예측 결과 탭 */}
                 {activeTab === 'results' && (
                     <div>
-                        <h4 style={{ marginBottom: '20px', color: '#333' }}>30일 사망률 예측 결과</h4>
+                        <h4 style={{ marginBottom: '20px', color: '#333' }}>예후 예측 결과</h4>
                         {predictionResults ? (
                             <div style={{ 
                                 backgroundColor: 'white', 
@@ -618,7 +618,7 @@ const DeathManagementView = ({ selectedPatient, onBackToPatientList }) => {
                                     textAlign: 'center',
                                     marginBottom: '20px'
                                 }}>
-                                    30일 사망률: {(predictionResults.mortality_30_day * 100).toFixed(1)}%
+                                    30일 이내 사망할 확률: {(predictionResults.mortality_30_day * 100).toFixed(1)}%
                                 </div>
                                 
                                 <div style={{ 

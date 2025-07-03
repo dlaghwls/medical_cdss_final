@@ -1,9 +1,8 @@
-// src/components/Common/MainView.js
+// /home/shared/medical_cdss/frontend/src/components/Common/MainView.js
 import React, { useCallback } from 'react';
 import { fetchPatientDetails } from '../../services/djangoApiService';
-import { MainPage } from '../../pages/Main';
 
-import LabResultsView from './LabResultsView';
+import { MainPage } from '../../pages/Main';
 import ComplicationManagementView from '../../pages/ComplicationManagementView';
 import DeathManagementView from '../../pages/DeathManagementView';
 import GeneManagementView from '../../pages/GeneManagementView';
@@ -13,6 +12,8 @@ import LabPage from '../Lab/LabPage';
 import PacsViewer from '../pacs/PacsViewer';
 import VitalSignsPage from '../Vital/VitalSignsPage';
 
+import styles from '../../styles/common/MainView.module.css';
+
 const MainView = ({
     currentViewId,
     user,
@@ -20,7 +21,6 @@ const MainView = ({
     selectedPatient,
     onSelectedPatientUpdated,
     onBackToPatientList,
-    style = {} // style props 받기
 }) => {
 
     const handleReturnToPatientList = () => {
@@ -45,12 +45,16 @@ const MainView = ({
     const renderContentOrPrompt = (Component, props = {}) => {
         if (!selectedPatient) {
             return (
-                <div style={{ textAlign: 'center', padding: '50px' }}>
+                // 클래스 이름을 CSS Module에서 가져옵니다.
+                <div className={styles.noPatientSelected}>
                     <h3>환자 정보가 필요합니다.</h3>
                     <p>왼쪽 사이드바의 환자 목록에서 환자를 선택해주세요.</p>
                 </div>
             );
         }
+        // 자식 컴포넌트들은 MainView의 flexbox 규칙을 따르도록
+        // 각 페이지 컴포넌트(MainPage, VitalSignsPage 등) 자체에서 높이/너비를 조절해야 할 수 있습니다.
+        // 또는 MainView 내부에서 자식 컴포넌트들을 감싸는 div에 flex: 1 등을 적용할 수도 있습니다.
         return <Component {...props} selectedPatient={selectedPatient} onBackToPatientList={handleReturnToPatientList} onSelectedPatientUpdated={handleRefreshSelectedPatient} />;
     };
 
@@ -86,10 +90,12 @@ const MainView = ({
             break;
         default:
             content = (
-                <div style={{ textAlign: 'center', padding: '50px' }}>
+                // 클래스 이름을 CSS Module에서 가져옵니다.
+                <div className={styles.notFoundPage}>
                     <h3>페이지를 찾을 수 없습니다.</h3>
                     <p>올바른 메뉴를 선택해주세요.</p>
-                    <button onClick={() => onViewChange('main_dashboard')} style={{ padding: '10px 20px', backgroundColor: '#007bff', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', marginTop: '20px' }}>
+                    {/* 버튼 스타일도 CSS Module에서 가져옵니다. */}
+                    <button className={styles.notFoundButton} onClick={() => onViewChange('main_dashboard')}>
                         메인 현황판으로 돌아가기
                     </button>
                 </div>
@@ -98,11 +104,8 @@ const MainView = ({
     }
 
     return (
-        <div className="main-view" style={{
-            ...style, // 🔥 핵심: 외부에서 전달된 style 반영
-            padding: '20px',
-            overflowY: 'auto'
-        }}>
+        // style props는 제거하고 className을 CSS Module에서 가져옵니다.
+        <div className={styles.mainView}>
             {content}
         </div>
     );

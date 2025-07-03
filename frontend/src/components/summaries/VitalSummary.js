@@ -1,62 +1,155 @@
-import React, { useState, useEffect } from 'react';
-import aiService from '../../services/aiService';
+import React, { useState, useEffect, useMemo } from 'react';
+import { fetchVitalsHistory } from '../../services/vitalApiService';
 
-const styles = { table: { width: '100%', borderCollapse: 'collapse', marginTop: '10px', }, td: { border: '1px solid #ddd', padding: '8px', }};
+// ✅ chart.js와 react-chartjs-2를 사용합니다.
+import { Line } from 'react-chartjs-2';
+import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Legend } from 'chart.js';
+
+ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Legend);
 
 export const VitalSummary = ({ patientId }) => {
-    const [vitals, setVitals] = useState(null);
+    const [chartData, setChartData] = useState({ labels: [], datasets: [] });
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [latestTime, setLatestTime] = useState(null);
 
     useEffect(() => {
         if (!patientId) {
             setLoading(false);
-            setVitals(null);
+            setChartData({ labels: [], datasets: [] });
             return;
         }
 
-        const fetchLatestVitals = async () => {
+        const fetchChartData = async () => {
             setLoading(true);
             setError(null);
             try {
-                // 이 함수는 이제 aiService.js에서 올바르게 동작합니다.
-                const history = await aiService.fetchVitalsHistory(patientId, 'all');
+                const history = await fetchVitalsHistory(patientId, '1d');
                 
                 if (history && history.length > 0) {
-                    const sorted = history.sort((a, b) =>
-                        new Date(b.recorded_at || b.created_at) - new Date(a.recorded_at || a.created_at)
-                    );
-                    setVitals(sorted[0]);
+                    const sortedHistory = history.sort((a, b) => new Date(a.recorded_at) - new Date(b.recorded_at));
+                    setLatestTime(new Date(sortedHistory[sortedHistory.length - 1].recorded_at));
+                    
+                    const labels = sortedHistory.map(session => {
+                        const date = new Date(session.recorded_at);
+                        return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+                    });
+
+                    // ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+                    // ✅✅✅ 여기에 모든 Vital 데이터를 추가합니다. ✅✅✅
+                    // ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+                    const datasets = [
+                        {
+                            label: 'SBP', // 수축기 혈압
+                            data: sortedHistory.map(s => s.measurements?.bp ? parseInt(s.measurements.bp.split('/')[0], 10) : null),
+                            borderColor: '#6c757d',
+                            tension: 0.3,
+                            pointRadius: 0,
+                        },
+                        {
+                            label: 'DBP', // 이완기 혈압 (추가)
+                            data: sortedHistory.map(s => s.measurements?.bp ? parseInt(s.measurements.bp.split('/')[1], 10) : null),
+                            borderColor: '#adb5bd',
+                            tension: 0.3,
+                            pointRadius: 0,
+                        },
+                        {
+                            label: 'HR', // 심박수
+                            data: sortedHistory.map(s => s.measurements?.hr),
+                            borderColor: '#fcbf49',
+                            tension: 0.3,
+                            pointRadius: 0,
+                        },
+                        {
+                            label: 'RR', // 호흡수 (추가)
+                            data: sortedHistory.map(s => s.measurements?.rr),
+                            borderColor: '#1CCAD8',
+                            tension: 0.3,
+                            pointRadius: 0,
+                        },
+                        {
+                            label: 'Temp', // 체온 (추가)
+                            data: sortedHistory.map(s => s.measurements?.temp),
+                            borderColor: '#f4a261',
+                            tension: 0.3,
+                            pointRadius: 0,
+                        },
+                        {
+                            label: 'SpO2', // 산소포화도
+                            data: sortedHistory.map(s => s.measurements?.spo2),
+                            borderColor: '#2a9d8f',
+                            tension: 0.3,
+                            pointRadius: 0,
+                        }
+                    ];
+
+                    setChartData({ labels, datasets });
                 } else {
-                    setVitals(null);
+                    setChartData({ labels: [], datasets: [] });
+                    setLatestTime(null);
                 }
             } catch (err) {
                 setError('Vital 정보 로딩 실패');
-                console.error("Fetch Latest Vitals Error:", err);
             } finally {
                 setLoading(false);
             }
         };
 
-        fetchLatestVitals();
+        fetchChartData();
     }, [patientId]);
+
+    const chartOptions = useMemo(() => ({
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                display: true,
+                position: 'top',
+                align: 'end',
+                labels: {
+                    boxWidth: 12,
+                    padding: 20, // 범례 간격
+                    font: { size: 10 }
+                }
+            },
+            tooltip: {
+                mode: 'index',
+                intersect: false,
+            }
+        },
+        scales: {
+            x: {
+                ticks: {
+                    font: { size: 10 },
+                    autoSkip: true,
+                    maxTicksLimit: 6
+                }
+            },
+            y: {
+                ticks: {
+                    font: { size: 10 }
+                }
+            }
+        }
+    }), []);
+
 
     if (loading) return <p>로딩 중...</p>;
     if (error) return <p style={{ color: 'red' }}>{error}</p>;
-    if (!vitals) return <p>데이터 없음</p>;
-
-    // ★★★★★ vitals 객체 안의 'measurements' 객체에서 값을 가져옵니다. ★★★★★
-    const vitalMeasurements = vitals.measurements || {};
-
+    if (chartData.datasets.length === 0 || chartData.datasets.every(ds => ds.data.every(d => d === null || isNaN(d)))) {
+        return <p>지난 24시간 동안의 데이터가 없습니다.</p>;
+    }
+    
     return (
-        <table style={styles.table}>
-            <tbody>
-                <tr><td style={styles.td}>체온</td><td style={styles.td}>{vitalMeasurements.temperature ? `${vitalMeasurements.temperature} °C` : ''}</td></tr>
-                <tr><td style={styles.td}>심박수</td><td style={styles.td}>{vitalMeasurements.heart_rate ? `${vitalMeasurements.heart_rate} bpm` : ''}</td></tr>
-                <tr><td style={styles.td}>호흡수</td><td style={styles.td}>{vitalMeasurements.respiratory_rate ? `${vitalMeasurements.respiratory_rate} breaths/min` : ''}</td></tr>
-                <tr><td style={styles.td}>혈압</td><td style={styles.td}>{vitalMeasurements.systolic_bp ? `${vitalMeasurements.systolic_bp} / ${vitalMeasurements.diastolic_bp} mmHg` : ''}</td></tr>
-                <tr><td style={styles.td}>측정일시</td><td style={styles.td}>{new Date(vitals.recorded_at || vitals.created_at).toLocaleString()}</td></tr>
-            </tbody>
-        </table>
+        <div>
+            <div style={{ height: '180px', width: '100%' }}>
+                <Line data={chartData} options={chartOptions} />
+            </div>
+            {latestTime && (
+                <p style={{ marginTop: '10px', fontSize: '0.9em', color: '#666', textAlign: 'right' }}>
+                    최신 측정: {latestTime.toLocaleString()}
+                </p>
+            )}
+        </div>
     );
 };

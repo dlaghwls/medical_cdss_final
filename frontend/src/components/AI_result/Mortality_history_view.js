@@ -60,7 +60,7 @@ const getRiskLevelColor = (riskLevel) => {
 // 사망률 기록 포맷팅 함수
 export const formatMortalityRecord = (record) => {
     return [
-        { label: '사망률 (30일)', value: record.mortality_30_day ? `${(record.mortality_30_day * 100).toFixed(1)}%` : 'N/A' },
+        { label: '30일 이내 사망할 확률', value: record.mortality_30_day ? `${(record.mortality_30_day * 100).toFixed(1)}%` : 'N/A' },
         { label: '위험도', value: record.risk_level || 'N/A' },
         { label: '신뢰도', value: record.confidence ? `${(record.confidence * 100).toFixed(1)}%` : 'N/A' },
         { label: '나이', value: record.age ? `${record.age}세` : 'N/A' },
@@ -91,7 +91,7 @@ export const MortalityHistoryView = ({ selectedPatient }) => {
             setError(null);
             try {
                 const response = await djangoApiService.fetchMortalityHistory(selectedPatient.uuid);
-                console.log('사망률 이력 조회 응답:', response);
+                console.log('예후 예측 이력 조회 응답:', response);
 
                 // 백엔드 응답 구조 확인 후 적절히 처리
                 let historyData = [];
@@ -107,7 +107,7 @@ export const MortalityHistoryView = ({ selectedPatient }) => {
                 const sortedData = historyData.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
                 setRecords(sortedData);
             } catch (err) {
-                console.error('사망률 이력 조회 실패:', err);
+                console.error('예후 예측 이력 조회 실패:', err);
                 setError(`기록 조회 실패: ${err.message}`);
             } finally {
                 setLoading(false);
@@ -132,12 +132,12 @@ export const MortalityHistoryView = ({ selectedPatient }) => {
 
     return (
         <div style={{ border: '1px solid #ccc', padding: '20px', borderRadius: '8px', backgroundColor: 'white' }}>
-            <h4>30일 사망률 예측 과거 기록</h4>
+            <h4>예후 예측 과거 기록</h4>
             <p><strong>대상 환자:</strong> {selectedPatient?.display || '환자를 선택해주세요'}</p>
 
             {records.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '40px', color: '#666' }}>
-                    <p>저장된 사망률 예측 기록이 없습니다.</p>
+                    <p>저장된 예후 예측 기록이 없습니다.</p>
                     <p>기록 입력 탭에서 데이터를 입력하고 예측을 실행해보세요.</p>
                 </div>
             ) : (
@@ -176,7 +176,7 @@ export const MortalityHistoryView = ({ selectedPatient }) => {
                                                 fontSize: '18px',
                                                 color: '#dc3545'
                                             }}>
-                                                사망률: {((record.mortality_30_day || 0) * 100).toFixed(1)}%
+                                                30일 이내 사망할 확률: {((record.mortality_30_day || 0) * 100).toFixed(1)}%
                                             </span>
                                             <span style={{
                                                 marginLeft: '20px',

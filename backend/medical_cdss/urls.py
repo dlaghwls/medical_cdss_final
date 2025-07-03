@@ -23,6 +23,7 @@ urlpatterns = [
     path('api/vitals/', include('vitals.urls')),
     path('api/accounts/', include('accounts.urls')),
     path('api/labs/', include('labs.urls')), 
+    
 ]
 # 6월 16일 Fluter 관련
 # urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

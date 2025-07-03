@@ -21,18 +21,20 @@
 .loginPageContainer::before {
   width: 120px;
   height: 120px;
-  top: 20%;
-  left: 50%;
-  transform: translateX(-50%);
+  /* ✨ 로그인 박스 좌상단 근처에 아슬아슬하게 겹치도록 조정 ✨ */
+  top: 20%; /* 화면 상단에서 더 내려오게 */
+  left: 30%; /* 화면 왼쪽에서 더 중앙으로 오게 */
+  transform: translateX(-50%); /* 기존 중앙 정렬 트랜스폼 유지 (조정된 left와 함께 사용) */
   animation-delay: 0s;
 }
 
 .loginPageContainer::after {
   width: 160px;
   height: 160px;
-  bottom: 10%;
-  left: 55%;
-  transform: translateX(-50%); 
+  /* ✨ 로그인 박스 우하단 근처에 아슬아슬하게 겹치도록 조정 ✨ */
+  bottom: 10%; /* 화면 하단에서 조금 더 위로 */
+  left: 65%; /* 화면 왼쪽에서 더 중앙으로 오게 (중앙 오른쪽) */
+  transform: translateX(-50%); /* 기존 중앙 정렬 트랜스폼 유지 */
   animation-delay: 5s;
 }
 
@@ -53,6 +55,8 @@
   max-width: 95%;
   text-align: left;
   box-sizing: border-box;
+  position: relative;
+  z-index: 1;
 }
 
 .strokeCarePlusLogo {
@@ -140,9 +144,33 @@
   text-decoration: none;
   font-weight: 600;
   margin-left: 5px;
+  /* informationLink와 동일하게 border-bottom 기반 호버 효과로 변경 */
+  border-bottom: 1px solid transparent; /* 호버 효과를 위한 밑줄 투명 처리 */
+  transition: border-bottom 0.3s ease;
 }
 
 .signupLink:hover {
-  text-decoration: underline;
+  text-decoration: none; /* 기본 밑줄 제거 */
+  border-bottom: 1px solid #007bff; /* 호버 시 밑줄 표시 */
+}
+
+.informationLinkContainer {
+  margin-top: 20px; /* 회원가입 링크와의 간격 */
+  /* informationLink의 폰트 크기를 더 크게 하기 위해 이 컨테이너의 font-size를 조정 */
+  font-size: 1.05em; /* 기존 0.95em 보다 크게 설정 */
+  text-align: center;
+}
+
+.informationLink {
+  color: #007bff; /* 회원가입 링크와 동일한 색상 */
+  text-decoration: none;
+  font-weight: 600;
+  border-bottom: 1px solid transparent; /* 호버 효과를 위한 밑줄 투명 처리 */
+  transition: border-bottom 0.3s ease;
+}
+
+.informationLink:hover {
+  text-decoration: none; /* 기본 밑줄 제거 */
+  border-bottom: 1px solid #007bff; /* 호버 시 밑줄 표시 */
 }
 

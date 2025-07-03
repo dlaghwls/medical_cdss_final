@@ -124,7 +124,7 @@ const aiService = {
     fetchSOD2Assessments: async (patientUuid) => {
         try {
             console.log('SOD2 평가 이력 조회:', patientUuid);
-            const response = await djangoApiClient.get(`ml/patients/${patientUuid}/sod2/assessments/`);
+            const response = await djangoApiClient.get(`ml/patient/${patientUuid}/sod2/assessments/`);
             console.log('SOD2 평가 이력 응답:', response.data);
             
             // 백엔드 응답 구조에 따라 적절히 반환
@@ -277,124 +277,55 @@ const aiService = {
      * @param {string} period - 조회 기간 (예: '1d', '7d')
      * @returns {Promise<Array>} - 활력 징후 기록 배열
      */
-    // fetchVitalsHistory: async (patientUuid, period = '1d') => {
-    //     try {
-    //         const response = await djangoApiClient.get(`vitals/?patient_uuid=${patientUuid}&period=${period}`);
-            
-    //         // DRF의 페이지네이션 응답을 처리하여 결과 배열만 반환합니다.
-    //         if (response.data && Array.isArray(response.data.results)) {
-    //             return response.data.results;
-    //         }
-    //         // 페이지네이션이 없는 경우, 받은 데이터 그대로 반환합니다.
-    //         return response.data;
-    //     } catch (error) {
-    //         console.error('Error fetching vitals history:', error.response || error);
-    //         throw error;
-    //     }
-    // },
 
     // =================================================================
     // ★★★ 추교상넌할수있어 ★★★
     // =================================================================
-    fetchVitalsHistory: async (patientUuid, period = '1d') => {
+    getPredictionResults: async (patientUuid) => {
+        try {
+            // Django 로그에서 확인된 올바른 주소(patient 단수형)를 사용합니다.
+            const response = await djangoApiClient.get(`ml/patient/${patientUuid}/results/`);
+            return response.data;
+        } catch (error) {
+            console.error(`Error fetching prediction results for patient ${patientUuid}:`, error.response || error);
+            throw error;
+        }
+    },
+
+    // Vital 이력 조회
+    fetchVitalsHistory: async (patientUuid, period = 'all') => {
         try {
             const response = await djangoApiClient.get(`vitals/?patient_uuid=${patientUuid}&period=${period}`);
-            
-            // DRF의 페이지네이션 응답을 처리하여 결과 배열만 반환합니다.
-            if (response.data && Array.isArray(response.data.results)) {
-                return response.data.results;
-            }
-            // 페이지네이션이 없는 경우, 받은 데이터 그대로 반환합니다.
-            return response.data;
+            return response.data.results || response.data || [];
         } catch (error) {
             console.error('Error fetching vitals history:', error.response || error);
             throw error;
         }
     },
     
-      // =================================================================
-    // ★★★ 추교상넌할수있어 ★★★
-    // =================================================================
-    /**
-     * 특정 환자의 LAB 기록을 가져옵니다.
-     * Django 백엔드 API의 실제 엔드포인트를 확인하여 아래 URL을 수정해야 합니다.
-     * 예: `/api/lab-results/?patient_uuid=${patientUuid}`
-     * @param {string} patientUuid - 환자의 UUID
-     * @returns {Promise<Array>} - LAB 기록 배열
-     */
-     fetchLabHistory: async (patientUuid) => {
+    // LAB 이력 조회
+    fetchLabHistory: async (patientUuid) => {
         try {
-            // ★★★★★ 이곳의 API 주소를 실제 Django 백엔드 API 주소로 수정해주세요. ★★★★★
-            // 예: const response = await djangoApiClient.get(`api/lab-results/?patient_uuid=${patientUuid}`);
-            const response = await djangoApiClient.get(`ml/patient/${patientUuid}/lab-results/`); 
-            
-            // Django Rest Framework의 페이지네이션 응답을 처리
-            if (response.data && Array.isArray(response.data.results)) {
-                return response.data.results;
-            }
-            // 페이지네이션이 없는 경우
-            return response.data;
+            // ★★★ 여기가 여전히 문제입니다! ★★★
+            // 경로가 'api/'로 시작해서는 안 됩니다.
+            const response = await djangoApiClient.get(`ml/patient/${patientUuid}/lab-results/`);
+            return response.data.results || response.data || [];
         } catch (error) {
             console.error('Error fetching lab history:', error.response || error);
             throw error;
         }
     },
-    /**
-     * 특정 환자의 가장 최신 활력 징후(Vital) 기록 1개를 가져옵니다.
-     * @param {string} patientUuid - 환자의 UUID
-     * @returns {Promise<object | null>} - 최신 활력 징후 기록 객체 또는 null
-     */
-    fetchLatestVitals: async (patientUuid) => {
+
+    // 유전자 분석 이력 조회 (FastAPI)
+    getGeneHistory: async (patientUuid) => {
         try {
-            // 순환 참조를 피하기 위해, fetchVitalsHistory의 로직을 직접 사용합니다.
-            const response = await djangoApiClient.get(`vitals/?patient_uuid=${patientUuid}&period=all`);
-            const history = (response.data && Array.isArray(response.data.results)) ? response.data.results : response.data;
-
-            if (history && history.length > 0) {
-                // 날짜 내림차순으로 정렬하여 가장 최신 기록을 찾습니다.
-                const sorted = history.sort((a, b) => 
-                    new Date(b.recorded_at || b.created_at) - new Date(a.recorded_at || a.created_at)
-                );
-                return sorted[0]; // 첫 번째 항목이 가장 최신 데이터입니다.
-            }
-            return null; // 기록이 없는 경우
+            const response = await axios.get(`${FASTAPI_GENE_API_BASE_URL}/gene_results/${patientUuid}`);
+            return response.data;
         } catch (error) {
-            if (error.response?.status === 404) return null;
-            console.error('Error fetching latest vitals:', error.response || error);
-            throw error;
-        }
-    },
-
-    /**
-     * 특정 환자의 가장 최신 LAB 기록 1개를 가져옵니다.
-     * Django 백엔드 API의 실제 엔드포인트를 확인하여 아래 URL을 수정해야 합니다.
-     * @param {string} patientUuid - 환자의 UUID
-     * @returns {Promise<object | null>} - 최신 LAB 기록 객체 또는 null
-     */
-    fetchLatestLabs: async (patientUuid) => {
-        try {
-            // ※ 중요: 이 주소는 실제 프로젝트의 LAB 이력 조회 API 주소여야 합니다.
-            // 개발자 도구의 Network 탭을 확인하여 정확한 주소를 입력해주세요.
-            // 예: const response = await djangoApiClient.get(`api/lab-results/?patient_uuid=${patientUuid}`);
-            const response = await djangoApiClient.get(`lab-results/?patient_uuid=${patientUuid}`);
-            const history = response.data.results || response.data;
-
-            if (history && Array.isArray(history) && history.length > 0) {
-                const sorted = history.sort((a, b) => new Date(b.recorded_at) - new Date(a.recorded_at));
-                return sorted[0];
-            }
-            return null;
-        } catch (error) {
-            if (error.response?.status === 404) return null;
-            console.error('Error fetching latest labs:', error.response || error);
+            console.error('유전자 분석 기록 불러오기 오류:', error.response?.data || error.message);
             throw error;
         }
     },
 };
 
 export default aiService;
-
-// fetchVitalsHistory
-// fetchLatestVitals
-// fetchLabHistory
-// fetchLatestLabs

@@ -14,6 +14,7 @@ services:
       - .:/app
       - ./frontend:/frontend
       - ./gcp-service-account.json:/secrets/gcp-key.json:ro # 유정우넌할수있어
+      - /home/shared/medical_cdss/backend/pacs:/home/shared/medical_cdss/backend/pacs
     depends_on:
       - postgres
       - redis

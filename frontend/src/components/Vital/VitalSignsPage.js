@@ -1,9 +1,12 @@
+// VitalSignsPage.js
 import React, { useState, useEffect, useMemo } from 'react';
 import { fetchVitalsHistory, saveVitals } from '../../services/vitalApiService';
 
 import { Line } from 'react-chartjs-2';
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend } from 'chart.js';
 import annotationPlugin from 'chartjs-plugin-annotation'; // annotation 플러그인은 혹시 모를 미래 확장성을 위해 남겨둡니다.
+
+import styles from './Vital.module.css'; // CSS 모듈 import
 
 // Chart.js 모듈 및 플러그인 등록
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, annotationPlugin);
@@ -284,53 +287,53 @@ const VitalSignsPage = ({ selectedPatient, onBackToPatientList }) => {
     }, [vitalSessions, hoveredDatasetIndex]); // hoveredDatasetIndex가 변경될 때마다 차트 재계산
 
     if (!selectedPatient) {
-        return <div style={{ padding: '20px' }}><h3>환자를 선택해주세요.</h3></div>;
+        return <div className={styles.container}><h3>환자를 선택해주세요.</h3></div>;
     }
 
     return (
-        <div style={{ padding: '20px' }}>
+        <div className={styles.container}>
             <h3>활력 징후 관리 - {selectedPatient.display}</h3>
 
-            <div style={{ border: '1px solid #ccc', padding: '20px', borderRadius: '8px', marginBottom: '30px', backgroundColor: 'white' }}>
+            <div className={styles.formSection}>
                 <h4>새 활력 징후 세션 입력</h4>
                 <form onSubmit={handleSubmit}>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px' }}>
+                    <div className={styles.formGrid}>
                         <div>
                             <label>측정 시간:*</label>
-                            <input type="datetime-local" value={recordedAt} onChange={e => setRecordedAt(e.target.value)} required style={{width: '95%', padding: '8px'}} />
+                            <input type="datetime-local" value={recordedAt} onChange={e => setRecordedAt(e.target.value)} required className={styles.formInput} />
                         </div>
                         <div>
                             <label>혈압 (Systolic/Diastolic):</label>
-                            <div style={{display: 'flex', alignItems: 'center'}}>
-                                <input type="number" name="bp_systolic" placeholder="SBP" value={formData.bp_systolic} onChange={handleFormChange} style={{width: '45%', padding: '8px'}} />
-                                <span style={{margin: '0 5px'}}>/</span>
-                                <input type="number" name="bp_diastolic" placeholder="DBP" value={formData.bp_diastolic} onChange={handleFormChange} style={{width: '45%', padding: '8px'}} />
+                            <div className={styles.bpInputs}>
+                                <input type="number" name="bp_systolic" placeholder="SBP" value={formData.bp_systolic} onChange={handleFormChange} className={styles.bpInput} />
+                                <span className={styles.bpSeparator}>/</span>
+                                <input type="number" name="bp_diastolic" placeholder="DBP" value={formData.bp_diastolic} onChange={handleFormChange} className={styles.bpInput} />
                             </div>
                         </div>
                         {Object.keys(VITAL_DEFINITIONS).filter(key => key !== 'bp_systolic' && key !== 'bp_diastolic').map(key => (
                              <div key={key}>
                                 <label>{VITAL_DEFINITIONS?.[key]?.name}:</label>
-                                <input type="number" step="0.1" name={key} placeholder={`단위: ${VITAL_DEFINITIONS?.[key]?.unit}`} value={formData?.[key]} onChange={handleFormChange} style={{width: '95%', padding: '8px'}} />
+                                <input type="number" step="0.1" name={key} placeholder={`단위: ${VITAL_DEFINITIONS?.[key]?.unit}`} value={formData?.[key]} onChange={handleFormChange} className={styles.formInput} />
                             </div>
                         ))}
                          <div>
                             <label>비고 (Notes):</label>
-                            <textarea name="notes" value={formData.notes} onChange={handleFormChange} style={{width: '95%', padding: '8px', height: '40px'}} />
+                            <textarea name="notes" value={formData.notes} onChange={handleFormChange} className={`${styles.formInput} ${styles.notesInput}`} />
                         </div>
                     </div>
-                    <button type="submit" disabled={loading} style={{ marginTop: '20px', padding: '10px 20px', backgroundColor: '#28a745', color: 'white', border: 'none', cursor: 'pointer' }}>
+                    <button type="submit" disabled={loading} className={styles.submitButton}>
                         {loading ? '저장 중...' : '세션 저장'}
                     </button>
                 </form>
-                {error && <p style={{ color: 'red', marginTop: '10px', whiteSpace: 'pre-wrap', border: '1px solid red', padding: '8px' }}>{error}</p>}
-                {successMessage && <p style={{ color: 'green', marginTop: '10px' }}>{successMessage}</p>}
+                {error && <p className={styles.errorMessage}>{error}</p>}
+                {successMessage && <p className={styles.successMessage}>{successMessage}</p>}
             </div>
 
-            <div style={{ border: '1px solid #ccc', padding: '20px', borderRadius: '8px', backgroundColor: 'white' }}>
+            <div className={styles.chartSection}>
                 <h4>활력 징후 추이</h4>
                 {loading && <p>기록 로딩 중...</p>}
                 {vitalSessions.length > 0 ? (
-                    <div style={{ height: '400px' }}>
+                    <div className={styles.chartContainer}>
                         <Line {...generateCombinedChartConfig} />
                     </div>
                 ) : (

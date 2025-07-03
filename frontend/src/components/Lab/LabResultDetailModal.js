@@ -5,11 +5,22 @@ import {
 } from 'recharts';
 
 const LabResultDetailModal = ({ isOpen, onClose, orderGroup, allPatientResults = [] }) => {
-  // 💡 모든 훅은 컴포넌트의 최상단에서 조건 없이 호출되어야 합니다.
   const [showChartModal, setShowChartModal] = useState(false);
   const [selectedTestItemForChart, setSelectedTestItemForChart] = useState(null);
   const [itemTrendData, setItemTrendData] = useState([]);
   const [previousResult, setPreviousResult] = useState(null);
+
+    const handleItemClick = (item) => {
+    setSelectedTestItemForChart(item);
+    setShowChartModal(true); // 차트 모달 열기
+  };
+
+  const handleCloseChartModal = () => {
+    setShowChartModal(false);
+    setSelectedTestItemForChart(null);
+    setItemTrendData([]); // 차트 데이터 초기화
+    setPreviousResult(null); // 이전 결과 초기화
+  };
 
   const formatDate = (dateString, includeTime = false) => {
     if (!dateString) return '날짜 정보 없음';

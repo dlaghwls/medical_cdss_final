@@ -1,7 +1,8 @@
-// /home/shared/medical_cdss/frontend/src/components/AI_result/Gene_history_view.js (변경 없음)
+// /home/shared/medical_cdss/frontend/src/components/AI_result/Gene_history_view.js
 import React, { useState, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import aiService from '../../services/aiService'; // AI 서비스 임포트
+import styles from './style/GeneHistoryView.module.css'; // CSS 모듈 임포트
 
 const GeneHistoryView = ({ selectedPatient }) => {
     const [historyData, setHistoryData] = useState([]);
@@ -49,41 +50,41 @@ const GeneHistoryView = ({ selectedPatient }) => {
     }, [selectedPatient]);
 
     if (loading) {
-        return <div style={{ textAlign: 'center', padding: '50px' }}>유전자 분석 기록을 불러오는 중...</div>;
+        return <div className={styles.loadingMessage}>유전자 분석 기록을 불러오는 중...</div>;
     }
 
     if (error) {
-        return <div style={{ textAlign: 'center', padding: '50px', color: 'red' }}>오류: {error}</div>;
+        return <div className={styles.errorMessage}>오류: {error}</div>;
     }
 
     if (!selectedPatient || !selectedPatient.uuid) {
         return (
-            <div style={{ textAlign: 'center', padding: '50px', backgroundColor: '#fffbe6', border: '1px solid #ffe68a', borderRadius: '8px' }}>
-                <p style={{ fontSize: '1.1em', color: '#8a6d3b' }}>환자를 선택하면 과거 유전자 분석 기록을 확인할 수 있습니다.</p>
+            <div className={`${styles.infoBox} ${styles.noPatientSelected}`}>
+                <p>환자를 선택하면 과거 유전자 분석 기록을 확인할 수 있습니다.</p>
             </div>
         );
     }
 
     if (historyData.length === 0) {
         return (
-            <div style={{ textAlign: 'center', padding: '50px', backgroundColor: '#f0f8ff', border: '1px solid #cce5ff', borderRadius: '8px' }}>
-                <p style={{ fontSize: '1.1em', color: '#31708f' }}>선택된 환자의 유전자 분석 기록이 없습니다.</p>
-                <p style={{ fontSize: '0.9em', color: '#555' }}>새로운 유전자 데이터를 업로드하여 첫 기록을 생성해보세요!</p>
+            <div className={`${styles.infoBox} ${styles.noHistory}`}>
+                <p>선택된 환자의 유전자 분석 기록이 없습니다.</p>
+                <p>새로운 유전자 데이터를 업로드하여 첫 기록을 생성해보세요!</p>
             </div>
         );
     }
 
     return (
-        <div style={{ padding: '20px', backgroundColor: '#f5f7fa', borderRadius: '10px', boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)' }}>
-            <h3 style={{ marginBottom: '20px', fontSize: '1.5em', color: '#333', textAlign: 'center' }}>
+        <div className={styles.container}>
+            <h3 className={styles.mainTitle}>
                 {selectedPatient.display}님의 유전자 분석 추이
             </h3>
-            <p style={{ textAlign: 'center', color: '#666', marginBottom: '30px' }}>
+            <p className={styles.subTitle}>
                 기간에 따른 예측 확률 변화를 확인하세요.
             </p>
 
-            <div style={{ width: '100%', height: 400, backgroundColor: '#ffffff', borderRadius: '8px', padding: '20px', boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}>
-                <h4 style={{ margin: '0 0 15px', color: '#444' }}>예측 확률 변화 (Prediction Probability)</h4>
+            <div className={styles.chartWrapper}>
+                <h4 className={styles.chartTitle}>예측 확률 변화 (Prediction Probability)</h4>
                 <ResponsiveContainer width="100%" height="85%">
                     <LineChart data={historyData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
@@ -118,32 +119,29 @@ const GeneHistoryView = ({ selectedPatient }) => {
                 </ResponsiveContainer>
             </div>
 
-            <h4 style={{ marginTop: '40px', marginBottom: '20px', fontSize: '1.3em', color: '#333' }}>상세 평가 기록</h4>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '20px' }}>
+            <h4 className={styles.detailTitle}>상세 평가 기록</h4>
+            <div className={styles.detailGrid}>
                 {historyData.map((record, index) => (
                     <div 
                         key={record.gene_ai_result_id || index} // id 대신 gene_ai_result_id 사용 (백엔드 응답에 따름)
-                        style={{ 
-                            border: '1px solid #e0e0e0', 
-                            borderRadius: '8px', 
-                            padding: '20px', 
-                            backgroundColor: '#ffffff', 
-                            boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            justifyContent: 'space-between'
-                        }}
+                        className={styles.recordCard}
                     >
-                        <p style={{ fontSize: '0.9em', color: '#777', marginBottom: '10px' }}>
+                        <p className={styles.recordTimestamp}>
                             기록 일시: <strong>{new Date(record.created_at).toLocaleString('ko-KR')}</strong>
                         </p>
-                        <p style={{ margin: '5px 0' }}>
-                            <strong>예측 확률:</strong> <span style={{ color: record.prediction_probability >= 0.7 ? '#28a745' : record.prediction_probability <= 0.3 ? '#dc3545' : '#ffc107', fontWeight: 'bold' }}>
+                        <p className={styles.recordProbability}>
+                            <strong>예측 확률:</strong> <span 
+                                className={
+                                    record.prediction_probability >= 0.7 ? styles.highProbability :
+                                    record.prediction_probability <= 0.3 ? styles.lowProbability :
+                                    styles.mediumProbability
+                                }
+                            >
                                 {(record.prediction_probability * 100).toFixed(1)}%
                             </span>
                         </p>
-                        <p style={{ margin: '5px 0' }}><strong>결과 메시지:</strong> {record.result_text || 'N/A'}</p>
-                        <p style={{ margin: '5px 0' }}><strong>모델:</strong> {record.model_name || 'N/A'} (v{record.model_version || 'N/A'})</p>
+                        <p className={styles.recordMessage}><strong>결과 메시지:</strong> {record.result_text || 'N/A'}</p>
+                        <p className={styles.recordModel}><strong>모델:</strong> {record.model_name || 'N/A'} (v{record.model_version || 'N/A'})</p>
                     </div>
                 ))}
             </div>

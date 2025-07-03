@@ -1,0 +1,512 @@
+/* --- 폰트 정의 (Pretendard 예시) --- */
+/* Google Fonts CDN 사용 */
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard-dynamic-subset.min.css');
+
+/* --- 기본 스타일 리셋 및 폰트 적용 --- */
+body {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Pretendard', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+    line-height: 1.6;
+    color: #333; /* 기본 텍스트 색상 */
+}
+
+/* --- 전체 컨테이너 --- */
+.info-informationPageContainer {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    background-color: #F8F8F8; /* 밝은 회색 배경 */
+    overflow-x: hidden; /* 가로 스크롤 방지 */
+    overflow-y: auto; /* 세로 스크롤 가능 (스크롤바 자동 표시) */
+    scroll-behavior: smooth;
+}
+
+/* --- 각 섹션의 공통 스타일 --- */
+.info-section {
+    padding: 100px 5%; /* 상하 패딩 늘림 */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 70vh; /* 각 섹션 최소 높이 조정 */
+    box-sizing: border-box;
+    position: relative;
+    text-align: center; /* 섹션 내 텍스트 중앙 정렬 기본 */
+}
+
+/* 섹션 내부 콘텐츠 Wrapper */
+.info-sectionContentWrapper {
+    width: 100%;
+    max-width: 1100px;
+    margin: 0 auto;
+    text-align: center;
+    position: relative; /* z-index 작동을 위해 필요 */
+    z-index: 1; /* 배경 요소들보다 위에 오도록 */
+    padding: 20px; /* 내부 패딩 추가하여 텍스트가 가장자리에 붙지 않게 */
+}
+
+/* 섹션 헤더 (제목) */
+.info-sectionHeader {
+    font-size: 2.8em; /* 섹션 제목 더 크게 */
+    font-weight: 700;
+    color: #1a1a1a; /* 검정색에 가까운 진한 회색 */
+    margin-bottom: 50px;
+    letter-spacing: -0.5px;
+}
+
+/* --- Hero Section (섹션 1) 강화 --- */
+.info-heroSection {
+    background: transparent;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+    position: relative;
+    z-index: 0;
+}
+
+/* 추가된 heroBackground div 스타일 */
+.info-heroBackground {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-image: url('background.jpg'); /* 이미지 경로 확인 및 수정 */
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    z-index: -2; /* 가장 뒤로 보냄 */
+
+    /* 이미지 투명도 및 블렌딩 효과로 매우 흐릿하게, 폰트 가독성 확보 */
+    background-color: rgba(0, 0, 0, 0.5); /* 이미지 위에 짙은 오버레이 (0.5로 더 어둡게) */
+    background-blend-mode: multiply; /* 이미지와 배경색을 곱해서 어둡게 만듦 */
+    filter: blur(8px) grayscale(60%); /* 블러 더 강하게 (8px), 흑백 강조 (60%) */
+    transform: scale(1.05); /* 블러 경계선 제거를 위해 약간 확대 (값 증가) */
+}
+
+.info-projectTitle {
+    font-size: 5.5em;
+    font-weight: 800;
+    color: #FFFFFF; /* 흰색 유지 */
+    margin-bottom: 25px;
+    letter-spacing: -2.5px;
+    opacity: 0;
+    transform: translateY(20px);
+    animation: fadeInSlideUp 1s ease-out forwards;
+    animation-delay: 0.2s;
+    text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.8); /* 그림자 더 강하게 */
+}
+
+.info-tagline {
+    font-size: 2em;
+    color: #E0E0E0; /* 약간 회색빛 도는 흰색 (부드러운 느낌) */
+    font-weight: 500;
+    margin-bottom: 35px;
+    opacity: 0;
+    transform: translateY(20px);
+    animation: fadeInSlideUp 1s ease-out forwards;
+    animation-delay: 0.5s;
+    text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.5); /* 그림자 */
+}
+
+.info-introText {
+    font-size: 1.25em;
+    color: #F0F0F0; /* 더 밝은 회색 (가독성 고려) */
+    line-height: 1.8;
+    max-width: 900px;
+    margin: 0 auto 60px auto;
+    opacity: 0;
+    transform: translateY(20px);
+    animation: fadeInSlideUp 1s ease-out forwards;
+    animation-delay: 0.8s;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.4); /* 그림자 */
+}
+
+.info-backToLoginLink {
+    display: inline-block;
+    padding: 20px 50px;
+    background-color: rgba(0, 123, 255, 0.9); /* 버튼 배경색 불투명도 높여 강조 */
+    color: white;
+    text-decoration: none;
+    border-radius: 12px;
+    font-size: 1.3em;
+    font-weight: 700;
+    transition: background-color 0.3s ease, transform 0.2s ease, box-shadow 0.3s ease;
+    box-shadow: 0 8px 25px rgba(0, 123, 255, 0.4);
+    opacity: 0;
+    transform: translateY(20px);
+    animation: fadeInSlideUp 1s ease-out forwards;
+    animation-delay: 1.1s;
+}
+
+.info-backToLoginLink:hover {
+    background-color: #0056b3; /* 호버 시 완전히 불투명하게 */
+    transform: translateY(-5px);
+    box-shadow: 0 15px 35px rgba(0, 123, 255, 0.7); /* 호버 시 그림자 더 강하게 */
+}
+
+/* Fade-in & Slide-up 애니메이션 키프레임 */
+@keyframes fadeInSlideUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* 섹션 탐색 네비게이션 스타일 추가 */
+.info-sectionNavigation {
+    margin-top: 80px; /* 메인 버튼 아래 여백 */
+    display: flex;
+    justify-content: center;
+    gap: 20px; /* 버튼 간 간격 */
+    flex-wrap: wrap; /* 작은 화면에서 줄바꿈 */
+}
+
+.info-navLinkButton {
+    background-color: rgba(255, 255, 255, 0.2); /* 반투명 흰색 배경 */
+    color: #FFFFFF; /* 흰색 폰트 */
+    border: 1px solid rgba(255, 255, 255, 0.4); /* 미세한 테두리 */
+    padding: 12px 25px;
+    border-radius: 8px;
+    font-size: 1.1em;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.3s ease, border-color 0.3s ease, transform 0.2s ease, box-shadow 0.3s ease;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3); /* 가독성 위한 그림자 */
+    opacity: 0; /* 초기 투명 */
+    transform: translateY(20px);
+    animation: fadeInSlideUp 1s ease-out forwards;
+    /* 각 버튼마다 animation-delay를 다르게 주어 순차적으로 나타나게 */
+    animation-delay: 1.4s; /* 첫 번째 버튼 */
+}
+
+.info-navLinkButton:nth-child(2) {
+    animation-delay: 1.6s; /* 두 번째 버튼 */
+}
+
+.info-navLinkButton:nth-child(3) {
+    animation-delay: 1.8s; /* 세 번째 버튼 */
+}
+
+.info-navLinkButton:hover {
+    background-color: rgba(255, 255, 255, 0.3); /* 호버 시 약간 더 불투명하게 */
+    border-color: rgba(255, 255, 255, 0.6);
+    transform: translateY(-3px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+}
+
+/* --- Architecture Section --- */
+.info-architectureSection {
+    background-color: #F8F8F8; /* 밝은 회색 배경 */
+    padding: 100px 5%;
+    border-top: 1px solid #f0f0f0;
+}
+
+.info-architectureDescription {
+    font-size: 1.15em; /* 설명 텍스트 크기 조정 */
+    color: #444;
+    line-height: 1.8; /* 줄 간격 조정 */
+    max-width: 900px;
+    margin: 0 auto 60px auto; /* 이미지 위 여백 늘림 */
+    text-align: center;
+}
+
+
+/* --- Features Section --- */
+.info-featuresSection {
+    background-color: #FFFFFF; /* 흰색 배경 */
+    border-top: 1px solid #f0f0f0;
+}
+
+.info-featureGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); /* 더 넓은 그리드 */
+    gap: 35px;
+    margin-top: 50px;
+}
+
+.info-featureItem {
+    background-color: #FFFFFF;
+    border: 1px solid #e0e0e0;
+    border-radius: 12px;
+    padding: 30px;
+    text-align: left;
+    box-shadow: 0 5px 18px rgba(0, 0, 0, 0.06); /* 그림자 조정 */
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.info-featureItem:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.12);
+}
+
+.info-featureItem h3 {
+    font-size: 1.7em; /* 기능 타이틀 크기 */
+    color: #003366; /* 진한 푸른색 */
+    margin-bottom: 15px;
+    font-weight: 600;
+}
+
+.info-featureItem p {
+    font-size: 1em; /* 내용 폰트 크기 */
+    color: #666;
+    line-height: 1.7; /* 줄 간격 조정 */
+    margin-bottom: 8px;
+}
+
+/* 팀원 소개 섹션 (섹션 4) 스타일 추가 */
+.info-teamMembersSection {
+    background-color: #FFFFFF;
+    padding: 100px 5%;
+    border-top: none;
+}
+
+.info-teamGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 30px;
+    margin-top: 50px;
+    text-align: center;
+    max-width: 1200px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.info-teamMemberCard {
+    background-color: #FFFFFF;
+    border: 1px solid #f0f0f0;
+    border-radius: 16px;
+    padding: 40px 30px;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.05);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+}
+
+.info-teamMemberCard:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+}
+
+.info-memberPhotoPlaceholder {
+    width: 120px;
+    height: 120px;
+    background-color: #e0e0e0;
+    border-radius: 50%;
+    margin-bottom: 25px; /* 사진과 이름 사이 간격 증가 */
+    border: 3px solid #f0f0f0;
+    flex-shrink: 0;
+    overflow: hidden;
+}
+
+.info-memberName {
+    font-size: 2.2em; /* 이름 폰트 크기 증가 */
+    font-weight: 700;
+    color: #1a1a1a;
+    margin-bottom: 12px;
+    letter-spacing: -0.5px;
+}
+
+.info-memberRole {
+    font-size: 1.3em; /* 역할 폰트 크기 증가 */
+    font-weight: 500;
+    color: #007bff;
+    margin-bottom: 20px; /* 역할과 설명 사이 간격 증가 */
+}
+
+.info-memberDescription {
+    font-size: 1em; /* 설명 폰트 크기 증가 */
+    color: #666;
+    line-height: 1.8; /* 줄 간격 증가 */
+    text-align: center;
+}
+
+/* --- 미디어 쿼리 (반응형 디자인) --- */
+
+/* 1200px 이하: 5열에서 유연한 그리드로 전환 */
+@media (max-width: 1200px) {
+    .info-teamGrid {
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); /* 220px 최소 너비로 유연하게 4, 3, 2열 등 자동 전환 */
+        gap: 25px;
+    }
+}
+
+/* 1024px 이하: 전반적인 섹션 패딩 및 헤더/타이틀 폰트 크기 조정 */
+@media (max-width: 1024px) {
+    .info-section {
+        padding: 80px 4%;
+    }
+    .info-sectionHeader {
+        font-size: 2.2em;
+        margin-bottom: 40px;
+    }
+    .info-projectTitle {
+        font-size: 4.5em; /* 기존보다 더 크게 유지 */
+    }
+    .info-tagline {
+        font-size: 1.6em;
+    }
+    .info-introText {
+        font-size: 1.1em;
+    }
+    .info-backToLoginLink {
+        padding: 15px 35px;
+        font-size: 1.1em;
+    }
+    .info-sectionNavigation {
+        gap: 15px;
+    }
+    .info-navLinkButton {
+        font-size: 1.1em; /* 폰트 크기 유지 */
+        padding: 10px 20px;
+    }
+
+    /* 팀원 카드: 1024px 이하에서 좀 더 크게 유지 */
+    .info-teamMemberCard {
+        padding: 35px 25px; /* 패딩 약간 줄임 */
+    }
+    .info-memberPhotoPlaceholder {
+        width: 110px;
+        height: 110px;
+        margin-bottom: 20px;
+    }
+    .info-memberName {
+        font-size: 2em; /* 이름 폰트 크기 유지 */
+    }
+    .info-memberRole {
+        font-size: 1.2em; /* 역할 폰트 크기 유지 */
+    }
+    .info-memberDescription {
+        font-size: 0.95em; /* 설명 폰트 크기 유지 */
+    }
+}
+
+/* 768px 이하: 태블릿 및 중소형 모바일 */
+@media (max-width: 768px) {
+    .info-section {
+        padding: 60px 4%;
+    }
+    .info-sectionHeader {
+        font-size: 1.8em;
+        margin-bottom: 30px;
+    }
+    .info-projectTitle {
+        font-size: 3.5em; /* 이전보다 더 크게 유지 */
+    }
+    .info-tagline {
+        font-size: 1.4em;
+    }
+    .info-introText {
+        font-size: 1em;
+    }
+    .info-featureGrid {
+        grid-template-columns: 1fr; /* 1열로 전환 */
+    }
+    .info-featureItem h3 {
+        font-size: 1.6em;
+    }
+    .info-featureItem p,
+    .info-architectureDescription {
+        font-size: 0.95em;
+    }
+    .info-architecturePlaceholder {
+        height: 300px;
+        font-size: 1.1em;
+    }
+    .info-backToLoginLink {
+        padding: 12px 25px;
+        font-size: 1em;
+    }
+    .info-sectionNavigation {
+        flex-direction: column; /* 세로로 쌓기 */
+        gap: 10px;
+    }
+    .info-navLinkButton {
+        width: 80%; /* 모바일에서 너비 확보 */
+        margin: 0 auto;
+        font-size: 0.95em;
+        padding: 10px 15px;
+    }
+    .info-teamGrid {
+        grid-template-columns: 1fr; /* 1열로 전환 */
+        gap: 20px; /* 간격 조정 */
+    }
+    .info-teamMemberCard {
+        padding: 30px 20px; /* 패딩 조정 */
+    }
+    .info-memberPhotoPlaceholder {
+        width: 100px;
+        height: 100px;
+        margin-bottom: 20px;
+    }
+    .info-memberName {
+        font-size: 1.8em; /* 폰트 크기 유지 */
+    }
+    .info-memberRole {
+        font-size: 1.1em; /* 폰트 크기 유지 */
+    }
+    .info-memberDescription {
+        font-size: 0.9em; /* 폰트 크기 유지 */
+    }
+}
+
+/* 480px 이하: 소형 모바일 */
+@media (max-width: 480px) {
+    .info-section {
+        padding: 40px 3%;
+    }
+    .info-sectionHeader {
+        font-size: 1.5em;
+        margin-bottom: 20px;
+    }
+    .info-projectTitle {
+        font-size: 2.8em; /* 폰트 크기 유지 */
+    }
+    .info-tagline {
+        font-size: 1.1em;
+    }
+    .info-introText {
+        font-size: 0.9em;
+    }
+    .info-featureItem h3 {
+        font-size: 1.4em;
+    }
+    .info-featureItem p,
+    .info-architectureDescription {
+        font-size: 0.9em;
+    }
+    .info-architecturePlaceholder {
+        height: 200px;
+        font-size: 1em;
+    }
+    .info-navLinkButton {
+        font-size: 0.9em;
+        padding: 8px 12px;
+    }
+    .info-memberPhotoPlaceholder {
+        width: 80px;
+        height: 80px;
+        margin-bottom: 15px;
+    }
+    .info-memberName {
+        font-size: 1.6em; /* 폰트 크기 유지 */
+    }
+    .info-memberRole {
+        font-size: 1em; /* 폰트 크기 유지 */
+    }
+    .info-memberDescription {
+        font-size: 0.85em; /* 폰트 크기 유지 */
+    }
+}
+
+

@@ -9,14 +9,22 @@ from schema import (
     SessionListResponse,
     ChatMessageSchema,
     ChatSessionSchema,
-    GeneAIResultSchema  
+    GeneAIResultSchema,
+    # 추교상넌할수있어
+    AntioxidantResultSchema,
+    ComplicationResultSchema,
+    MortalityResultSchema,  
 )
 from controller import (
     handle_init_chat,
     handle_chat_reply,
     get_session_messages,
     get_sessions_by_patient_uuid,
-    get_gene_ai_results_for_patient 
+    get_gene_ai_results_for_patient,
+    # 추교상넌할수있어
+    get_antioxidant_results_for_patient,
+    get_complication_results_for_patient,
+    get_mortality_results_for_patient,
 )
 
 router = APIRouter()
@@ -69,4 +77,30 @@ def get_patient_gene_ai_results(patient_uuid: UUID):
     """
     return get_gene_ai_results_for_patient(patient_uuid)
 
+
+# [추가 3] 항산화 결과 API 엔드포인트
+@router.get("/antioxidant-results/{patient_uuid}", response_model=list[AntioxidantResultSchema])
+def get_patient_antioxidant_results(patient_uuid: UUID):
+    """
+    특정 환자의 모든 항산화 결과 목록을 가져옵니다.
+    """
+    return get_antioxidant_results_for_patient(patient_uuid)
+
+
+# [추가 4] 합병증 결과 API 엔드포인트
+@router.get("/complication-results/{patient_uuid}", response_model=list[ComplicationResultSchema])
+def get_patient_complication_results(patient_uuid: UUID):
+    """
+    특정 환자의 모든 합병증 예측 결과 목록을 가져옵니다.
+    """
+    return get_complication_results_for_patient(patient_uuid)
+
+
+# [추가 5] 사망률 결과 API 엔드포인트
+@router.get("/mortality-results/{patient_uuid}", response_model=list[MortalityResultSchema])
+def get_patient_mortality_results(patient_uuid: UUID):
+    """
+    특정 환자의 모든 뇌졸중 사망률 예측 결과 목록을 가져옵니다.
+    """
+    return get_mortality_results_for_patient(patient_uuid)
 

@@ -551,30 +551,119 @@ def save_complications_medications(request, patient_uuid):
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
 
+# @api_view(['GET', 'POST'])
+# @permission_classes([AllowAny])
+# def lis_lab_results(request, patient_uuid):
+#     """LIS 검사 결과 관리"""
+#     try:
+#         patient = get_object_or_404(OpenMRSPatient, uuid=patient_uuid)
+        
+#         if request.method == 'GET':
+#             # LabResult 모델이 OpenMRSPatient를 참조하는지 확인 후 필터링
+#             # lab_results = LabResult.objects.filter(patient=patient).order_by('-test_date')
+#             lab_results = LabResult.objects.filter(patient=patient).order_by('-recorded_at') # 추교상넌할수있어
+#             results_data = []
+#             for result in lab_results:
+#                 results_data.append({
+#                     'id': result.id,
+#                     'patient_uuid': str(result.patient.uuid), # 환자 UUID 추가
+#                     'test_type': result.test_type,
+#                     'test_name': result.test_name,
+#                     'test_value': float(result.value), # 문자열을 숫자로 변환
+#                     'unit': result.unit,
+#                     'reference_range': result.reference_range,
+#                     # 'recorded_at': result.test_date.isoformat(), # 필드 이름 recorded_at으로 통일
+#                     'recorded_at': result.recorded_at.isoformat(), # 추교상넌할수있어
+#                     'is_abnormal': result.is_abnormal,
+#                     'notes': getattr(result, 'notes', '') # notes 필드가 있다면
+#                 })
+            
+#             return Response({
+#                 'lab_results': results_data,
+#                 'total_count': len(results_data)
+#             })
+            
+#         elif request.method == 'POST':
+#             # 새로운 검사 결과 저장
+#             data = request.data
+            
+#             # 클라이언트에서 보낸 데이터 구조에 따라 수정
+#             # 예: { "patient": "uuid", "test_name": "...", "test_value": ..., "unit": "...", "recorded_at": "..." }
+#             test_name = data.get('test_name')
+#             test_value = data.get('test_value')
+#             unit = data.get('unit')
+#             notes = data.get('notes', '')
+#             recorded_at_str = data.get('recorded_at')
+
+#             if not all([test_name, test_value, unit, recorded_at_str]):
+#                 return Response({'error': '필수 검사 결과 데이터가 누락되었습니다.'}, status=status.HTTP_400_BAD_REQUEST)
+
+#             try:
+#                 # datetime-local 형식 (YYYY-MM-DDTHH:MM)을 파싱
+#                 recorded_at = datetime.fromisoformat(recorded_at_str)
+#             except ValueError:
+#                 return Response({'error': '유효하지 않은 날짜/시간 형식입니다.'}, status=status.HTTP_400_BAD_REQUEST)
+
+#             # LabResult 객체 생성 및 저장
+#             lab_result = LabResult.objects.create(
+#                 patient=patient, # 환자 인스턴스 연결
+#                 test_type='routine', # 필요하다면 클라이언트에서 받거나 기본값 설정
+#                 test_name=test_name,
+#                 value=str(test_value), # 문자열로 저장
+#                 unit=unit,
+#                 test_date=recorded_at.date(), # 날짜만 저장 (test_date 필드가 DateField라면)
+#                 recorded_at=recorded_at, # DateTimeField가 있다면 recorded_at으로
+#                 is_abnormal=False, # 필요하다면 로직 추가
+#                 notes=notes,
+#                 # created_by=request.user if request.user.is_authenticated else None # created_by 필드가 있다면
+#             )
+            
+#             return Response({
+#                 'message': '검사 결과가 성공적으로 저장되었습니다.',
+#                 'saved_result': {
+#                     'id': lab_result.id,
+#                     'patient_uuid': str(lab_result.patient.uuid),
+#                     'test_name': lab_result.test_name,
+#                     'test_value': float(lab_result.value),
+#                     'unit': lab_result.unit,
+#                     'recorded_at': lab_result.recorded_at.isoformat(),
+#                     'notes': lab_result.notes
+#                 }
+#             }, status=status.HTTP_201_CREATED)
+            
+#     except Exception as e:
+#         logger.error(f"검사 결과 관리 실패: {e}", exc_info=True)
+#         return Response(
+#             {'error': f'검사 결과 처리 중 오류가 발생했습니다: {str(e)}'}, 
+#             status=status.HTTP_500_INTERNAL_SERVER_ERROR
+#         )
+# 추교상넌할수있어
 @api_view(['GET', 'POST'])
 @permission_classes([AllowAny])
 def lis_lab_results(request, patient_uuid):
-    """LIS 검사 결과 관리"""
+    """LIS 검사 결과 관리 (최종 수정 버전)"""
     try:
         patient = get_object_or_404(OpenMRSPatient, uuid=patient_uuid)
         
         if request.method == 'GET':
-            # LabResult 모델이 OpenMRSPatient를 참조하는지 확인 후 필터링
-            lab_results = LabResult.objects.filter(patient=patient).order_by('-test_date')
+            # lab_results = LabResult.objects.filter(patient=patient).order_by('-recorded_at')
+            # 추교상넌할수있어
+            lab_results = LabResult.objects.filter(patient__uuid=patient_uuid).order_by('-recorded_at')
             
             results_data = []
             for result in lab_results:
                 results_data.append({
                     'id': result.id,
-                    'patient_uuid': str(result.patient.uuid), # 환자 UUID 추가
-                    'test_type': result.test_type,
+                    'patient_uuid': str(result.patient.uuid),
+                    'test_type': result.test_name, # 모델에 test_type이 없으므로 test_name 사용
                     'test_name': result.test_name,
-                    'test_value': float(result.value), # 문자열을 숫자로 변환
+                    # ✅✅✅ result.value -> result.test_value 로 수정
+                    'test_value': float(result.test_value), 
                     'unit': result.unit,
-                    'reference_range': result.reference_range,
-                    'recorded_at': result.test_date.isoformat(), # 필드 이름 recorded_at으로 통일
-                    'is_abnormal': result.is_abnormal,
-                    'notes': getattr(result, 'notes', '') # notes 필드가 있다면
+                    'reference_range': getattr(result, 'reference_range', ''), 
+                    'recorded_at': result.recorded_at.isoformat(),
+                    'is_abnormal': getattr(result, 'is_abnormal', False),
+                    'notes': getattr(result, 'notes', '')
                 })
             
             return Response({
@@ -583,11 +672,8 @@ def lis_lab_results(request, patient_uuid):
             })
             
         elif request.method == 'POST':
-            # 새로운 검사 결과 저장
+            # POST 로직도 모델 필드명에 맞게 수정
             data = request.data
-            
-            # 클라이언트에서 보낸 데이터 구조에 따라 수정
-            # 예: { "patient": "uuid", "test_name": "...", "test_value": ..., "unit": "...", "recorded_at": "..." }
             test_name = data.get('test_name')
             test_value = data.get('test_value')
             unit = data.get('unit')
@@ -598,37 +684,20 @@ def lis_lab_results(request, patient_uuid):
                 return Response({'error': '필수 검사 결과 데이터가 누락되었습니다.'}, status=status.HTTP_400_BAD_REQUEST)
 
             try:
-                # datetime-local 형식 (YYYY-MM-DDTHH:MM)을 파싱
                 recorded_at = datetime.fromisoformat(recorded_at_str)
             except ValueError:
                 return Response({'error': '유효하지 않은 날짜/시간 형식입니다.'}, status=status.HTTP_400_BAD_REQUEST)
 
-            # LabResult 객체 생성 및 저장
+            # ✅✅✅ create 구문에서 모델에 없는 test_date 필드 제거, value -> test_value로 수정
             lab_result = LabResult.objects.create(
-                patient=patient, # 환자 인스턴스 연결
-                test_type='routine', # 필요하다면 클라이언트에서 받거나 기본값 설정
+                patient=patient,
                 test_name=test_name,
-                value=str(test_value), # 문자열로 저장
+                test_value=test_value,
                 unit=unit,
-                test_date=recorded_at.date(), # 날짜만 저장 (test_date 필드가 DateField라면)
-                recorded_at=recorded_at, # DateTimeField가 있다면 recorded_at으로
-                is_abnormal=False, # 필요하다면 로직 추가
+                recorded_at=recorded_at,
                 notes=notes,
-                # created_by=request.user if request.user.is_authenticated else None # created_by 필드가 있다면
             )
-            
-            return Response({
-                'message': '검사 결과가 성공적으로 저장되었습니다.',
-                'saved_result': {
-                    'id': lab_result.id,
-                    'patient_uuid': str(lab_result.patient.uuid),
-                    'test_name': lab_result.test_name,
-                    'test_value': float(lab_result.value),
-                    'unit': lab_result.unit,
-                    'recorded_at': lab_result.recorded_at.isoformat(),
-                    'notes': lab_result.notes
-                }
-            }, status=status.HTTP_201_CREATED)
+            return Response({'message': '성공'}, status=status.HTTP_201_CREATED)
             
     except Exception as e:
         logger.error(f"검사 결과 관리 실패: {e}", exc_info=True)
@@ -636,64 +705,137 @@ def lis_lab_results(request, patient_uuid):
             {'error': f'검사 결과 처리 중 오류가 발생했습니다: {str(e)}'}, 
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
-
+# 추교상넌할수있어
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def get_prediction_results(request, patient_uuid):
-    """환자의 모든 예측 결과 조회"""
+    """환자의 모든 최신 예측 결과를 통합하여 조회 (수정된 최종 버전)"""
     try:
         patient = get_object_or_404(OpenMRSPatient, uuid=patient_uuid)
         
-        # 최신 예측 결과들 가져오기 - 모델 관계 확인 필요
-        complications_prediction = ComplicationPrediction.objects.filter(
-            task__patient=patient, # task__patient로 필터링
-            complication_type='complications'
-        ).order_by('-task__created_at').first()
+        # -----------------------------------------------------------------
+        # 1. 최신 합병증 예측 결과 조회
+        # -----------------------------------------------------------------
+        # 가장 최근의 'COMPLICATION' 타입 Task를 찾습니다.
+        latest_complication_task = PredictionTask.objects.filter(
+            patient=patient,
+            task_type='COMPLICATION'
+        ).order_by('-created_at').first()
+
+        complications_data = {}
+        # Task가 존재하고, 그 안에 예측 결과(JSON)가 있으면 데이터를 추출합니다.
+        if latest_complication_task and latest_complication_task.predictions:
+            predictions = latest_complication_task.predictions
+            complications_data = {
+                # 프론트엔드 컴포넌트가 전체 result 객체를 원하므로 그대로 전달합니다.
+                'pneumonia': predictions.get('pneumonia', {}),
+                'acute_kidney_injury': predictions.get('acute_kidney_injury', {}),
+                'heart_failure': predictions.get('heart_failure', {})
+            }
         
-        sod2_analysis = SOD2Analysis.objects.filter(
-            task__patient=patient, # task__patient로 필터링
-            task__task_type='SOD2_ASSESSMENT'
+        # -----------------------------------------------------------------
+        # 2. 최신 사망률 예측 결과 조회
+        # -----------------------------------------------------------------
+        # 가장 최근의 'MORTALITY' 타입 Task에 연결된 StrokeMortalityPrediction 객체를 찾습니다.
+        latest_mortality_prediction = StrokeMortalityPrediction.objects.filter(
+            task__patient=patient,
+            task__task_type='MORTALITY'
         ).order_by('-task__created_at').first()
-        
-        # 차트 데이터 준비
-        chart_data = {
-            'complications': {},
-            'mortality': {}, # 사망률 예측 결과는 별도 API나 모델에서 가져와야 함
-            'sod2_scores': {}
+
+        mortality_data = {}
+        if latest_mortality_prediction:
+            # 프론트엔드 컴포넌트가 필요로 하는 모든 필드를 담아줍니다.
+            mortality_data = {
+                'mortality_30_day': latest_mortality_prediction.mortality_30_day,
+                'mortality_30_day_risk_level': latest_mortality_prediction.mortality_30_day_risk_level,
+                'model_confidence': latest_mortality_prediction.model_confidence,
+                'model_auc': latest_mortality_prediction.model_auc,
+                'risk_factors': latest_mortality_prediction.risk_factors,
+                'clinical_recommendations': latest_mortality_prediction.clinical_recommendations,
+                'predicted_at': latest_mortality_prediction.task.created_at.isoformat()
+            }
+
+        # -----------------------------------------------------------------
+        # 3. 최종 응답 데이터 구성
+        # -----------------------------------------------------------------
+        # 프론트엔드 요약 컴포넌트가 데이터를 쉽게 찾을 수 있도록 키 이름을 명확히 합니다.
+        response_data = {
+            'complication_prediction': complications_data,
+            'mortality_prediction': mortality_data,
         }
         
-        if complications_prediction:
-            results = complications_prediction.task.predictions # predictions 필드 사용
-            chart_data['complications'] = {
-                'pneumonia': results.get('pneumonia', {}).get('probability', 0),
-                'acute_kidney_injury': results.get('acute_kidney_injury', {}).get('probability', 0),
-                'heart_failure': results.get('heart_failure', {}).get('probability', 0)
-            }
-        
-        if sod2_analysis:
-            # SOD2 결과에서 mortality_30_day와 risk_level은 직접 매핑
-            chart_data['mortality'] = {
-                'mortality_30_day': sod2_analysis.sod2_prediction_data.get('mortality_30_day', 0.1), # SOD2 데이터에 사망률 정보가 있다면
-                'risk_level': sod2_analysis.oxidative_stress_risk.upper() if sod2_analysis.oxidative_stress_risk else 'LOW'
-            }
-            chart_data['sod2_scores'] = {
-                'nihss_score': sod2_analysis.nihss_score or 0,
-                'current_sod2_level': sod2_analysis.current_sod2_level or 0,
-                'exercise_intensity': sod2_analysis.exercise_intensity or 0
-            }
+        all_tasks = PredictionTask.objects.filter(patient=patient, task_type__in=['COMPLICATION', 'MORTALITY']).order_by('-created_at')
+        last_updated = all_tasks.first().created_at.isoformat() if all_tasks.exists() else None
         
         return Response({
             'patient_uuid': str(patient.uuid),
-            'chart_data': chart_data,
-            'last_updated': complications_prediction.task.created_at.isoformat() if complications_prediction and complications_prediction.task.created_at else None
+            'latest_predictions': response_data,
+            'last_updated': last_updated
         })
         
     except Exception as e:
-        logger.error(f"예측 결과 조회 실패: {e}", exc_info=True)
+        logger.error(f"최신 예측 결과 통합 조회 실패: {e}", exc_info=True)
         return Response(
-            {'error': f'예측 결과를 조회할 수 없습니다: {str(e)}'}, 
+            {'error': f'최신 예측 결과를 조회할 수 없습니다: {str(e)}'}, 
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
+# @api_view(['GET'])
+# @permission_classes([AllowAny])
+# def get_prediction_results(request, patient_uuid):
+#     """환자의 모든 예측 결과 조회"""
+#     try:
+#         patient = get_object_or_404(OpenMRSPatient, uuid=patient_uuid)
+        
+#         # 최신 예측 결과들 가져오기 - 모델 관계 확인 필요
+#         complications_prediction = ComplicationPrediction.objects.filter(
+#             task__patient=patient, # task__patient로 필터링
+#             complication_type='complications'
+#         ).order_by('-task__created_at').first()
+        
+#         sod2_analysis = SOD2Analysis.objects.filter(
+#             task__patient=patient, # task__patient로 필터링
+#             task__task_type='SOD2_ASSESSMENT'
+#         ).order_by('-task__created_at').first()
+        
+#         # 차트 데이터 준비
+#         chart_data = {
+#             'complications': {},
+#             'mortality': {}, # 사망률 예측 결과는 별도 API나 모델에서 가져와야 함
+#             'sod2_scores': {}
+#         }
+        
+#         if complications_prediction:
+#             results = complications_prediction.task.predictions # predictions 필드 사용
+#             chart_data['complications'] = {
+#                 'pneumonia': results.get('pneumonia', {}).get('probability', 0),
+#                 'acute_kidney_injury': results.get('acute_kidney_injury', {}).get('probability', 0),
+#                 'heart_failure': results.get('heart_failure', {}).get('probability', 0)
+#             }
+        
+#         if sod2_analysis:
+#             # SOD2 결과에서 mortality_30_day와 risk_level은 직접 매핑
+#             chart_data['mortality'] = {
+#                 'mortality_30_day': sod2_analysis.sod2_prediction_data.get('mortality_30_day', 0.1), # SOD2 데이터에 사망률 정보가 있다면
+#                 'risk_level': sod2_analysis.oxidative_stress_risk.upper() if sod2_analysis.oxidative_stress_risk else 'LOW'
+#             }
+#             chart_data['sod2_scores'] = {
+#                 'nihss_score': sod2_analysis.nihss_score or 0,
+#                 'current_sod2_level': sod2_analysis.current_sod2_level or 0,
+#                 'exercise_intensity': sod2_analysis.exercise_intensity or 0
+#             }
+        
+#         return Response({
+#             'patient_uuid': str(patient.uuid),
+#             'chart_data': chart_data,
+#             'last_updated': complications_prediction.task.created_at.isoformat() if complications_prediction and complications_prediction.task.created_at else None
+#         })
+        
+#     except Exception as e:
+#         logger.error(f"예측 결과 조회 실패: {e}", exc_info=True)
+#         return Response(
+#             {'error': f'예측 결과를 조회할 수 없습니다: {str(e)}'}, 
+#             status=status.HTTP_500_INTERNAL_SERVER_ERROR
+#         )
 
 # ============= 합병증 예측 API (수정된 버전) =============
 

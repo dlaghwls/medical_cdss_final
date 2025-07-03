@@ -1,3 +1,27 @@
+/* /home/shared/medical_cdss/frontend/src/App.css */
+
+/* 전역 CSS 변수 정의 */
+:root {
+  --primary-color: #0d6efd; /* 주요 색상 (기존 부트스트랩 블루) */
+  --sidebar-bg: #f8f9fa; /* 사이드바 배경색 */
+  --text-color: #6c757d; /* 기본 텍스트 색상 */
+  --text-secondary-color: #495057; /* 보조 텍스트 색상 */
+  --border-color: #dee2e6; /* 구분선 색상 */
+  --hover-bg: #e9ecef; /* 호버 시 배경색 */
+  --active-bg: #0d6efd; /* 활성 메뉴 배경색 */
+  --active-text-color: #ffffff; /* 활성 메뉴 텍스트 색상 */
+}
+
+/* HTML, Body, Root 엘리먼트가 전체 뷰포트 높이를 차지하도록 설정 */
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  font-family: 'Inter', sans-serif; /* Inter 폰트 사용 */
+  overflow: auto;
+}
+
+/* 기존 App.css 내용 (필요한 경우 유지) */
 .App {
   text-align: center;
 }

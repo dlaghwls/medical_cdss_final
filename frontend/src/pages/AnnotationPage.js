@@ -189,36 +189,74 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { useLocation, useParams } from 'react-router-dom';
 import * as cornerstone from '@cornerstonejs/core';
 import * as cornerstoneTools from '@cornerstonejs/tools';
-import { init as initDicomLoader, wadouri } from '@cornerstonejs/dicom-image-loader';
+// import { init as initDicomLoader, wadouri } from '@cornerstonejs/dicom-image-loader';
+// import * as dicomImageLoader from '@cornerstonejs/dicom-image-loader';
 import styles from '../styles/pages/AnnotationPage.module.css';
 
 const { RenderingEngine, cache, imageLoader, Enums } = cornerstone;
 
-const configureCornerstoneWadoLoader = () => {
-    initDicomLoader({
-        webWorkerPath: '/cornerstone-dicom-loader.worker.js',
-        taskConfiguration: {
-            'decodeTask': {
-                codecsPath: '/codecs/cornerstoneWADOImageLoaderCodecs.js',
-            },
-            'jpxDecodeTask': {
-                codecsPath: '/codecs/openjphjs.js',
-            },
-            'jp2kDecodeTask': {
-                codecsPath: '/codecs/openjpegwasm_decode.js',
-            },
-            'jpeglsDecodeTask': {
-                codecsPath: '/codecs/charlswasm_decode.js',
-            },
-            'jpegDecodeTask': {
-                codecsPath: '/codecs/libjpegturbowasm_decode.js',
-            }
-        },
-        maxWebWorkers: navigator.hardwareConcurrency || 1,
-    });
-    imageLoader.registerImageLoader('wadouri', wadouri.loadImage);
-};
+// 유정우가 cornerstone 3.25버전 이용 문제로 주석처리 
+// const configureCornerstoneWadoLoader = () => {
+//     dicomImageLoader.configure({
+//         webWorkerPath: '/cornerstone-dicom-loader.worker.js',
+//         taskConfiguration: {
+//             'decodeTask': {
+//                 codecsPath: '/codecs/cornerstoneWADOImageLoaderCodecs.js',
+//             },
+//             'jpxDecodeTask': {
+//                 codecsPath: '/codecs/openjphjs.js',
+//             },
+//             'jp2kDecodeTask': {
+//                 codecsPath: '/codecs/openjpegwasm_decode.js',
+//             },
+//             'jpeglsDecodeTask': {
+//                 codecsPath: '/codecs/charlswasm_decode.js',
+//             },
+//             'jpegDecodeTask': {
+//                 codecsPath: '/codecs/libjpegturbowasm_decode.js',
+//             }
+//         },
+//         maxWebWorkers: navigator.hardwareConcurrency || 1,
+//     });
+// };
 
+
+
+// 6월 23일 Frontend 작업
+// import React, { useEffect, useRef, useState, useCallback } from 'react';
+// import { useLocation, useParams } from 'react-router-dom';
+// import * as cornerstone from '@cornerstonejs/core';
+// import * as cornerstoneTools from '@cornerstonejs/tools';
+// // 수정된 부분 1: init 대신 cornerstoneWADOImageLoader를 default로 가져옵니다.
+// import cornerstoneWADOImageLoader from '@cornerstonejs/dicom-image-loader';
+// import styles from '../styles/pages/AnnotationPage.module.css';
+
+// const { RenderingEngine, cache, imageLoader, Enums } = cornerstone;
+
+// // 수정된 부분 2: initDicomLoader() 대신 cornerstoneWADOImageLoader.webWorkerManager.initialize()를 사용합니다.
+// const configureCornerstoneWadoLoader = () => {
+//     cornerstoneWADOImageLoader.webWorkerManager.initialize({
+//         webWorkerPath: '/cornerstone-dicom-loader.worker.js',
+//         taskConfiguration: {
+//             'decodeTask': {
+//                 codecsPath: '/codecs/cornerstoneWADOImageLoaderCodecs.js',
+//             },
+//             'jpxDecodeTask': {
+//                 codecsPath: '/codecs/openjphjs.js',
+//             },
+//             'jp2kDecodeTask': {
+//                 codecsPath: '/codecs/openjpegwasm_decode.js',
+//             },
+//             'jpeglsDecodeTask': {
+//                 codecsPath: '/codecs/charlswasm_decode.js',
+//             },
+//             'jpegDecodeTask': {
+//                 codecsPath: '/codecs/libjpegturbowasm_decode.js',
+//             }
+//         },
+//         maxWebWorkers: navigator.hardwareConcurrency || 1,
+//     });
+// };
 const AnnotationPage = () => {
     console.log("AnnotationPage: 컴포넌트 렌더링 시작");
     const location = useLocation();
@@ -250,10 +288,12 @@ const AnnotationPage = () => {
 
             const toolGroup = cornerstoneTools.ToolGroupManager.getToolGroup(toolGroupId);
             if (toolGroup) {
-                toolGroup.setToolActive(cornerstoneTools.RectangleROITool.toolName, {
+                toolGroup.setToolActive('RectangleROI', {
                     bindings: [{ mouseButton: cornerstoneTools.Enums.MouseBindings.Primary }]
                 });
-                console.log('모든 과정 완료. 뷰어가 준비되었습니다.');
+                toolGroup.setToolActive('Length', {
+                    bindings: [{ mouseButton: cornerstoneTools.Enums.MouseBindings.Secondary }]
+                });
             }
         } catch (err) {
             console.error('이미지 로딩 및 렌더링 오류:', err);
@@ -272,20 +312,20 @@ const AnnotationPage = () => {
 
         const setupInitialViewer = async () => {
             try {
-                await cornerstone.init();
                 await cornerstoneTools.init();
-                configureCornerstoneWadoLoader();
-
-                cornerstoneTools.addTool(cornerstoneTools.RectangleROITool);
-                cornerstoneTools.addTool(cornerstoneTools.LengthTool);
+                
+                // 250628_21:29 유정우가 주석처리 해 놓음 (segmentation 오류의 원인인것 같아서)
+                // cornerstoneTools.addTool(cornerstoneTools.RectangleROITool, { name: 'RectangleROI' });
+                // cornerstoneTools.addTool(cornerstoneTools.LengthTool, { name: 'Length' });
 
                 let toolGroup = cornerstoneTools.ToolGroupManager.getToolGroup(toolGroupId);
                 if (!toolGroup) {
                     toolGroup = cornerstoneTools.ToolGroupManager.createToolGroup(toolGroupId);
                 }
-                toolGroup.addTool(cornerstoneTools.RectangleROITool.toolName);
-                toolGroup.addTool(cornerstoneTools.LengthTool.toolName);
 
+                toolGroup.addTool('RectangleROI');
+                toolGroup.addTool('Length');
+                
                 renderingEngineInstance = new RenderingEngine(renderingEngineId);
                 const viewportId = 'CT_VIEWPORT';
                 renderingEngineInstance.enableElement({ viewportId, element, type: Enums.ViewportType.STACK });
@@ -351,5 +391,153 @@ const AnnotationPage = () => {
         </div>
     );
 };
-
 export default AnnotationPage;
+
+
+// import React, { useEffect, useRef, useState } from 'react';
+// import { useLocation } from 'react-router-dom';
+// import * as cornerstone from '@cornerstonejs/core';
+// import * as cornerstoneTools from '@cornerstonejs/tools';
+// import cornerstoneWADOImageLoader from '@cornerstonejs/dicom-image-loader';
+// import styles from '../styles/pages/AnnotationPage.module.css';
+
+// // ✅ Enums를 cornerstone(core)가 아닌 cornerstoneTools에서 가져오므로, 여기서 Enums를 제거합니다.
+// const { RenderingEngine, cache, imageLoader } = cornerstone; 
+// const {
+//     RectangleROITool,
+//     LengthTool,
+//     PanTool,
+//     ZoomTool,
+//     StackScrollMouseWheelTool,
+//     ToolGroupManager,
+// } = cornerstoneTools;
+
+// const configureCornerstoneWadoLoader = () => {
+//     const config = {
+//         webWorkerPath: '/cornerstone-dicom-loader.worker.js',
+//         taskConfiguration: {
+//             decodeTask: {
+//                 codecsPath: '/codecs/cornerstoneWADOImageLoaderCodecs.js',
+//             },
+//         },
+//     };
+//     cornerstoneWADOImageLoader.webWorkerManager.initialize(config);
+
+//     const YOUR_AUTH_TOKEN = localStorage.getItem('accessToken');
+//     if (YOUR_AUTH_TOKEN) {
+//         cornerstoneWADOImageLoader.configure({
+//             beforeSend: (xhr) => {
+//                 xhr.setRequestHeader('Authorization', `Bearer ${YOUR_AUTH_TOKEN}`);
+//             },
+//         });
+//     }
+// };
+
+// const AnnotationPage = () => {
+//     const location = useLocation();
+//     const { imageIds, patientName, studyDescription } = location.state || {};
+    
+//     const viewportDivRef = useRef(null);
+//     const toolGroupId = 'ANNOTATION_TOOLGROUP';
+
+//     const [isLoading, setIsLoading] = useState(true);
+//     const [error, setError] = useState(null);
+
+//     useEffect(() => {
+//         const element = viewportDivRef.current;
+//         if (!element || !imageIds || imageIds.length === 0) {
+//             if (imageIds && imageIds.length === 0) {
+//                 setError('표시할 이미지 정보가 없습니다.');
+//                 setIsLoading(false);
+//             }
+//             return;
+//         }
+
+//         let renderingEngine;
+
+//         const setupViewer = async () => {
+//             try {
+//                 await cornerstone.init();
+//                 await cornerstoneTools.init();
+//                 configureCornerstoneWadoLoader();
+                
+//                 imageLoader.registerImageLoader('wadouri', cornerstoneWADOImageLoader.loadImage);
+                
+//                 try {
+//                     cornerstoneTools.addTool(StackScrollMouseWheelTool);
+//                     cornerstoneTools.addTool(PanTool);
+//                     cornerstoneTools.addTool(ZoomTool);
+//                     cornerstoneTools.addTool(RectangleROITool);
+//                     cornerstoneTools.addTool(LengthTool);
+//                 } catch (err) {
+//                     console.warn("하나 이상의 도구가 이미 등록되어 있습니다:", err.message);
+//                 }
+                
+//                 let toolGroup = ToolGroupManager.getToolGroup(toolGroupId);
+//                 if (!toolGroup) {
+//                     toolGroup = ToolGroupManager.createToolGroup(toolGroupId);
+//                 }
+
+//                 toolGroup.addTool(StackScrollMouseWheelTool.toolName);
+//                 toolGroup.addTool(PanTool.toolName);
+//                 toolGroup.addTool(ZoomTool.toolName);
+//                 toolGroup.addTool(RectangleROITool.toolName);
+//                 toolGroup.addTool(LengthTool.toolName);
+                
+//                 // ✅✅✅ 여기가 핵심 수정 부분입니다. ✅✅✅
+//                 // Enums.MouseBindings -> cornerstoneTools.Enums.MouseBindings 로 전체 수정
+//                 toolGroup.setToolActive(StackScrollMouseWheelTool.toolName);
+//                 toolGroup.setToolActive(PanTool.toolName, { bindings: [{ mouseButton: cornerstoneTools.Enums.MouseBindings.Auxiliary }] });
+//                 toolGroup.setToolActive(ZoomTool.toolName, { bindings: [{ mouseButton: cornerstoneTools.Enums.MouseBindings.Secondary }] });
+//                 toolGroup.setToolActive(RectangleROITool.toolName, { bindings: [{ mouseButton: cornerstoneTools.Enums.MouseBindings.Primary }] });
+
+//                 const renderingEngineId = 'myRenderingEngine';
+//                 renderingEngine = new RenderingEngine(renderingEngineId);
+
+//                 const viewportId = 'DICOM_VIEWPORT';
+//                 renderingEngine.enableElement({ viewportId, element, type: cornerstone.Enums.ViewportType.STACK });
+//                 toolGroup.addViewport(viewportId, renderingEngineId);
+                
+//                 const prefixedImageIds = imageIds.map(id => id.startsWith('wadouri:') ? id : `wadouri:${id}`);
+//                 const viewport = renderingEngine.getViewport(viewportId);
+//                 await viewport.setStack(prefixedImageIds, 0);
+
+//                 renderingEngine.render();
+
+//             } catch (err) {
+//                 console.error('뷰어 설정 및 이미지 로딩 오류:', err);
+//                 setError(`뷰어 설정 오류: ${err.message}`);
+//             } finally {
+//                 setIsLoading(false);
+//             }
+//         };
+
+//         setupViewer();
+
+//         return () => {
+//             const re = cornerstone.getRenderingEngine('myRenderingEngine');
+//             if (re) {
+//                 re.destroy();
+//             }
+//             ToolGroupManager.destroyToolGroup(toolGroupId);
+//             cache.purgeCache();
+//         };
+//     }, [imageIds]);
+
+//     return (
+//         <div className={styles.annotationContainer}>
+//             <div className={styles.header}>
+//                 <p>환자: {patientName || 'N/A'}</p> 
+//                 <p>검사: {studyDescription || 'N/A'}</p>
+//             </div>
+//             {(isLoading || error) && (
+//                 <div className={styles.loadingOverlay}>
+//                     {error ? `오류: ${error}` : '이미지 로딩 중...'}
+//                 </div>
+//             )}
+//             <div ref={viewportDivRef} className={styles.viewport} />
+//         </div>
+//     );
+// };
+
+// export default AnnotationPage;

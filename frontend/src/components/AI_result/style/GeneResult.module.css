@@ -1,0 +1,142 @@
+/* GeneResultDisplay.module.css */
+
+/* Custom CSS Variables for colors */
+:root {
+    --danger-color: #dc3545;
+    --success-color: #28a745;
+    --warning-color: #ffc107;
+}
+
+.noResultText {
+    text-align: center;
+    color: #555;
+    padding: 20px;
+}
+
+.container {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    padding: 20px;
+    background-color: #ffffff;
+    border-radius: 10px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 15px;
+}
+
+.mainTitle {
+    margin: 0;
+    color: #333;
+}
+
+.patientInfo {
+    font-size: 0.9em;
+    color: #666;
+}
+
+.cardsGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+}
+
+.card {
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 20px;
+    background-color: #f8f9fa;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.probabilityCard {
+    text-align: center;
+    /* Border color set dynamically in JS using CSS variables */
+}
+
+.cardLabel {
+    margin: 0 0 10px;
+    font-size: 0.9em;
+    color: #555;
+}
+
+.probabilityValue {
+    margin: 0;
+    font-size: 2.5em;
+    font-weight: bold; /* Added for emphasis */
+}
+
+.probabilityStatus {
+    margin: 10px 0 0;
+    font-size: 1em;
+    font-weight: bold;
+}
+
+/* Color classes for probability */
+.dangerColor {
+    color: var(--danger-color);
+}
+
+.successColor {
+    color: var(--success-color);
+}
+
+.warningColor {
+    color: var(--warning-color);
+}
+
+.progressBar {
+    width: 100%;
+    background-color: #e0e0e0;
+    border-radius: 5px;
+    height: 10px;
+    margin-top: 10px;
+    overflow: hidden;
+}
+
+.progressBarFill {
+    height: 100%;
+    border-radius: 5px;
+    /* Background color set dynamically in JS using CSS variables */
+}
+
+.infoCard .infoItem {
+    margin: 5px 0;
+}
+
+.messageText {
+    margin: 0;
+    font-size: 1.1em;
+    font-weight: bold;
+    color: #444;
+}
+
+/* Responsive adjustments for smaller screens */
+@media (max-width: 768px) {
+    .header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+
+    .mainTitle {
+        text-align: left;
+    }
+
+    .patientInfo {
+        text-align: left;
+    }
+
+    .cardsGrid {
+        grid-template-columns: 1fr; /* Stack cards on smaller screens */
+    }
+}

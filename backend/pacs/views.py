@@ -28,6 +28,17 @@ from ai_segmentation_service.segmentation_flow import process_nifti_segmentation
 from collections import defaultdict # 유정우넌할수있어 nnunet성공이후추가
 import shutil # 유정우넌할수있어 nnunet성공이후추가
 import numpy as np # 유정우넌할수있어 nnunet성공이후추가
+
+import threading
+import time
+from django.core.cache import cache
+from django.shortcuts import render
+from django.http import StreamingHttpResponse
+from .dicom_seg_converter import SegDicomConverterMixin
+
+# from highdicom.seg.content import SegmentDescription, AlgorithmIdentificationSequence
+# from highdicom.seg.sop import Segmentation
+
 logger = logging.getLogger(__name__)
 ORTHANC_AUTH = (settings.ORTHANC_USERNAME, settings.ORTHANC_PASSWORD)
 
@@ -662,55 +673,117 @@ class NiftiUploadView(APIView):
 
 ####### 유정우넌할수있어 nnunet성공이후 추가 ###########
 class ListPatientSessionsView(APIView):
-    """특정 환자의 모든 업로드 세션과 파일 목록을 GCS에서 조회합니다."""
     def get(self, request, patient_uuid, *args, **kwargs):
         logger.info(f"GCS 파일 목록 조회 시작. 환자 UUID: {patient_uuid}")
         try:
             storage_client = storage.Client()
             bucket = storage_client.bucket("final_model_data1")
             prefix = f"nifti/{patient_uuid}/"
-            blobs = bucket.list_blobs(prefix=prefix)
+            blobs = list(bucket.list_blobs(prefix=prefix))
+            
+            if not blobs:
+                return Response({"sessions": []})
+
             sessions_data = defaultdict(lambda: defaultdict(list))
             for blob in blobs:
                 parts = blob.name.split('/')
                 if len(parts) >= 5 and parts[-1]:
                     session_id, modality, file_name = parts[2], parts[3], parts[4]
-                    sessions_data[session_id][modality].append({
+                    sessions_data[session_id][modality.lower()].append({
                         "name": file_name,
                         "gcs_path": f"gs://{bucket.name}/{blob.name}",
-                        "viewer_url": f"/orthanc/viewer/{patient_uuid}/{session_id}/{modality}" 
                     })
-            if not sessions_data: return Response([])
+            
+            if not sessions_data: return Response({"sessions": []})
+
             formatted_sessions = [{"sessionId": sid, "modalities": mods} for sid, mods in sessions_data.items()]
             sorted_sessions = sorted(formatted_sessions, key=lambda s: s['sessionId'], reverse=True)
-            logger.info(f"환자 {patient_uuid}에 대한 {len(sorted_sessions)}개의 세션을 찾았습니다.")
-            return Response(sorted_sessions)
+            return Response({"sessions": sorted_sessions})
         except Exception as e:
-            logger.error(f"GCS 파일 목록 조회 중 오류 발생: {e}", exc_info=True)
-            return Response({"error": "서버에서 파일 목록을 가져오는 중 오류가 발생했습니다."}, status=500)
+            logger.error(f"GCS 파일 목록 조회 중 오류: {e}", exc_info=True)
+            return Response({"error": "서버 오류"}, status=500)
 
-
-class NiftiToDicomView(APIView):
-    """GCS 경로의 NIfTI 파일을 실시간으로 DICOM으로 변환하고 Orthanc에 업로드합니다."""
-    def post(self, request, *args, **kwargs):
-        gcs_path = request.data.get('gcs_path')
-        patient_uuid = request.data.get('patient_uuid')
-
-        if not gcs_path or not patient_uuid:
-            return Response({"error": "gcs_path와 patient_uuid가 필요합니다."}, status=status.HTTP_400_BAD_REQUEST)
-
-        logger.info(f"NIfTI -> DICOM 변환 요청 시작: {gcs_path}")
+                
+# class DicomConverterMixin:
+#     def convert_nifti_to_dicom(self, gcs_path, patient, study_uid, image_type, request):
+#         logger.info(f"DICOM 변환 시작 ({image_type}): {gcs_path}")
+#         safe_temp_dir = os.path.join(settings.BASE_DIR, 'temp_files')
+#         os.makedirs(safe_temp_dir, exist_ok=True)
+#         temp_nifti_path = os.path.join(safe_temp_dir, f"{uuid.uuid4()}.nii.gz")
+#         temp_dicom_dir = tempfile.mkdtemp(dir=safe_temp_dir)
         
-        try:
-            from openmrs.models import OpenMRSPatient
-            patient = get_object_or_404(OpenMRSPatient, uuid=patient_uuid)
-        except (ImportError, Http404):
-            logger.warning(f"DB에서 환자 정보를 찾을 수 없음: {patient_uuid}. 임시 정보를 사용합니다.")
-            class TempPatient:
-                identifier = patient_uuid
-                display_name = "Unknown^Patient"
-            patient = TempPatient()
+#         try:
+#             storage_client = storage.Client()
+#             bucket_name, blob_name = gcs_path.replace("gs://", "").split("/", 1)
+#             bucket = storage_client.bucket(bucket_name)
+#             bucket.blob(blob_name).download_to_filename(temp_nifti_path)
+            
+#             nifti_img = nib.load(temp_nifti_path)
+#             img_data = nifti_img.get_fdata()
 
+#             # ==== [여기만 변경!] ====
+#             if image_type.upper() == 'SEG':
+#                 logger.info("SEG 변환은 SegDicomConverterMixin에서만 처리, 기존 믹스인에서는 무시 후 None 반환")
+#                 return None
+#             # ==== [여기까지!] ====
+
+#             # 아래는 100% 기존 FLAIR/DWI/ADC 변환 로직 그대로!
+#             window_center, window_width = 115.0, 4186.0
+#             real_min, real_max = np.min(img_data), np.max(img_data)
+#             int_max, int_min = np.iinfo(np.int16).max, np.iinfo(np.int16).min
+#             rescale_slope = (real_max - real_min) / (int_max - int_min) if real_max != real_min else 1.0
+#             rescale_intercept = real_min
+
+#             series_uid = generate_uid()
+#             orthanc_ids = []
+
+#             for i in range(img_data.shape[2]):
+#                 slice_float = img_data[:, :, i]
+#                 scaled_slice = ((slice_float - rescale_intercept) / rescale_slope) + int_min if rescale_slope != 0 else np.zeros_like(slice_float)
+#                 pixel_data, pixel_repr = scaled_slice.astype(np.int16), 1
+
+#                 rotated_data = np.rot90(pixel_data, k=3)
+#                 ds = FileDataset(None, {}, file_meta=FileMetaDataset(), preamble=b"\0" * 128)
+#                 ds.file_meta.MediaStorageSOPClassUID = pydicom.uid.MRImageStorage
+#                 ds.file_meta.MediaStorageSOPInstanceUID = generate_uid()
+#                 ds.file_meta.TransferSyntaxUID = pydicom.uid.ExplicitVRLittleEndian
+#                 ds.PatientID, ds.PatientName = patient.identifier, patient.display_name.replace(' ', '^')
+#                 ds.StudyInstanceUID, ds.SeriesInstanceUID = study_uid, series_uid
+#                 ds.SOPInstanceUID, ds.SOPClassUID = ds.file_meta.MediaStorageSOPInstanceUID, ds.file_meta.MediaStorageSOPClassUID
+#                 ds.Modality, ds.InstanceNumber, ds.ImageType = "MR", str(i + 1), ["DERIVED", "PRIMARY"]
+#                 ds.StudyDate, ds.StudyTime = datetime.now().strftime('%Y%m%d'), datetime.now().strftime('%H%M%S')
+#                 pix_zooms = nifti_img.header.get_zooms()[:2]
+#                 ds.PixelSpacing = [f"{z:.8f}" for z in reversed(pix_zooms)]
+#                 ds.Rows, ds.Columns = rotated_data.shape
+#                 ds.SamplesPerPixel = 1
+#                 ds.PhotometricInterpretation = "MONOCHROME2"
+#                 ds.BitsAllocated, ds.BitsStored, ds.HighBit = 16, 16, 15
+#                 ds.PixelRepresentation = pixel_repr
+#                 ds.PixelData = rotated_data.tobytes()
+#                 ds.RescaleIntercept, ds.RescaleSlope = f"{rescale_intercept:.8f}", f"{rescale_slope:.8f}"
+#                 ds.WindowCenter, ds.WindowWidth = f"{window_center:.8f}", f"{window_width:.8f}"
+#                 temp_dcm_path = os.path.join(temp_dicom_dir, f"slice_{i}.dcm")
+#                 ds.save_as(temp_dcm_path, write_like_original=False)
+#                 with open(temp_dcm_path, 'rb') as f:
+#                     resp = requests.post(f"{settings.ORTHANC_URL}/instances", data=f.read(), auth=ORTHANC_AUTH)
+#                     resp.raise_for_status()
+#                     orthanc_ids.append(resp.json()['ID'])
+            
+#             image_ids = [f"wadouri:{request.build_absolute_uri(f'/api/pacs/dicom-instance-data/{_id}/')}" for _id in orthanc_ids]
+#             return {"seriesInstanceUID": series_uid, "imageIds": image_ids}
+
+#         except Exception as e:
+#             logger.error(f"DICOM 변환 중 오류 ({gcs_path}): {e}", exc_info=True)
+#             return None
+#         finally:
+#             if 'temp_nifti_path' in locals() and os.path.exists(temp_nifti_path): os.remove(temp_nifti_path)
+#             if 'temp_dicom_dir' in locals() and os.path.exists(temp_dicom_dir): shutil.rmtree(temp_dicom_dir)
+
+
+
+class DicomConverterMixin:
+    def convert_nifti_to_dicom(self, gcs_path, patient, study_uid, image_type, request):
+        logger.info(f"DICOM 변환 시작 ({image_type}): {gcs_path}")
         safe_temp_dir = os.path.join(settings.BASE_DIR, 'temp_files')
         os.makedirs(safe_temp_dir, exist_ok=True)
         temp_nifti_path = os.path.join(safe_temp_dir, f"{uuid.uuid4()}.nii.gz")
@@ -724,121 +797,318 @@ class NiftiToDicomView(APIView):
             
             nifti_img = nib.load(temp_nifti_path)
             img_data = nifti_img.get_fdata()
-            # NIfTI 헤더에서 voxel spacing (mm) 정보 가져오기
-            x_spacing, y_spacing, z_spacing = nifti_img.header.get_zooms()[:3]
-            # [핵심 수정] 픽셀 데이터의 통계를 기반으로 Window/Level 및 Rescale 정보 계산
-            # 0~65535 범위를 그대로 사용
-            pixel_min = 0
-            pixel_max = 255
-            rescale_slope = 1.0
-            rescale_intercept = 0.0
 
-            window_width = float(pixel_max - pixel_min)       # 65535
-            window_center = float((pixel_max + pixel_min) / 2) # 32767.5
+            if image_type.upper() == 'SEG':
+                # 마스크는 0/1 or 0/255로 강제 변환 (픽셀 오버레이 선명하게!)
+                    img_data = (img_data <= 0.5).astype(np.uint8) * 255   # ★★★ 반전!
+                    window_center, window_width = 128, 255
+                    real_min, real_max = 0, 255
+                    int_max, int_min = 255, 0
+                    rescale_slope = 1
+                    rescale_intercept = 0
+                    bits_allocated = 8
+                    bits_stored = 8
+                    high_bit = 7
+            else:
+                window_center, window_width = 115.0, 4186.0
+                real_min, real_max = np.min(img_data), np.max(img_data)
+                int_max, int_min = np.iinfo(np.int16).max, np.iinfo(np.int16).min
+                rescale_slope = (real_max - real_min) / (int_max - int_min) if real_max != real_min else 1.0
+                rescale_intercept = real_min
 
-            study_uid = pydicom.uid.generate_uid()
-            series_uid = pydicom.uid.generate_uid()
-            orthanc_instance_ids = []
+            series_uid = generate_uid()
+            orthanc_ids = []
 
             for i in range(img_data.shape[2]):
-                # 이 한 줄만 바꿉니다 — 0/1 바이너리 마스크를 0~65535 범위로 늘려요
-                mask      = (img_data[:, :, i] > 0).astype(np.uint8)
-                slice_data = (mask * 255).astype(np.uint8)
+                slice_float = img_data[:, :, i]
+                scaled_slice = ((slice_float - rescale_intercept) / rescale_slope) + int_min if rescale_slope != 0 else np.zeros_like(slice_float)
+                pixel_data, pixel_repr = scaled_slice.astype(np.int16), 1
 
-                file_meta = FileMetaDataset()
-                file_meta.MediaStorageSOPClassUID = pydicom.uid.MRImageStorage
-                file_meta.MediaStorageSOPInstanceUID = pydicom.uid.generate_uid()
-                file_meta.TransferSyntaxUID = pydicom.uid.ExplicitVRLittleEndian
-                file_meta.ImplementationClassUID = pydicom.uid.generate_uid()
-
-                ds = FileDataset(f"slice_{i}.dcm", {}, file_meta=file_meta, preamble=b"\0" * 128)
-                
-                # --- [핵심 수정] 뷰어 호환성을 위한 완전한 DICOM 태그 세트 ---
-                ds.PatientID = patient.identifier
-                ds.PatientName = patient.display_name.replace(' ', '^')
-                ds.StudyInstanceUID = study_uid
-                ds.SeriesInstanceUID = series_uid
-                ds.SOPInstanceUID = file_meta.MediaStorageSOPInstanceUID
-                ds.SOPClassUID = file_meta.MediaStorageSOPClassUID
-                ds.Modality = "MR"
-                ds.InstanceNumber = str(i + 1)
-                ds.ImageType = ["DERIVED", "PRIMARY", "AXIAL"]
-                ds.StudyDate = datetime.now().strftime('%Y%m%d')
-                ds.StudyTime = datetime.now().strftime('%H%M%S')
-                
-                # Image Pixel Module
+                rotated_data = np.rot90(pixel_data, k=3)
+                ds = FileDataset(None, {}, file_meta=FileMetaDataset(), preamble=b"\0" * 128)
+                ds.file_meta.MediaStorageSOPClassUID = pydicom.uid.MRImageStorage
+                ds.file_meta.MediaStorageSOPInstanceUID = generate_uid()
+                ds.file_meta.TransferSyntaxUID = pydicom.uid.ExplicitVRLittleEndian
+                ds.PatientID, ds.PatientName = patient.identifier, patient.display_name.replace(' ', '^')
+                ds.StudyInstanceUID, ds.SeriesInstanceUID = study_uid, series_uid
+                ds.SOPInstanceUID, ds.SOPClassUID = ds.file_meta.MediaStorageSOPInstanceUID, ds.file_meta.MediaStorageSOPClassUID
+                ds.Modality, ds.InstanceNumber, ds.ImageType = "MR", str(i + 1), ["DERIVED", "PRIMARY"]
+                ds.StudyDate, ds.StudyTime = datetime.now().strftime('%Y%m%d'), datetime.now().strftime('%H%M%S')
+                pix_zooms = nifti_img.header.get_zooms()[:2]
+                ds.PixelSpacing = [f"{z:.8f}" for z in reversed(pix_zooms)]
+                ds.Rows, ds.Columns = rotated_data.shape
                 ds.SamplesPerPixel = 1
                 ds.PhotometricInterpretation = "MONOCHROME2"
-                ds.Rows, ds.Columns = slice_data.shape
-                ds.BitsAllocated = 8
-                ds.BitsStored = 8 # 데이터를 int16으로 변환했으므로 16비트 사용
-                ds.HighBit = 7
-                ds.PixelRepresentation = 0 # 부호 있는 정수(signed)
-                ds.PixelData = slice_data.tobytes()
-
-                ds.WindowCenter          = 127.5
-                ds.WindowWidth           = 255.0
-
-                # ─────────── Spatial 정보 ───────────
-                # (0028,0030) Pixel Spacing (mm) : [row spacing, column spacing]
-                ds.PixelSpacing = [str(y_spacing), str(x_spacing)]
-
-                # (0020,0032) Image Position (Patient) : x, y, z of first pixel
-                # 여기서는 slice index에 따른 z 위치 계산
-                ds.ImagePositionPatient = [
-                    "0",  # x
-                    "0",  # y
-                    str(i * z_spacing)  # z
-                ]
-
-                # (0020,0037) Image Orientation (Patient)
-                # 기본적으로 행 방향이 X축, 열 방향이 Y축이라면
-                ds.ImageOrientationPatient = [
-                    "1", "0", "0",  # X 방향 cosines
-                    "0", "1", "0"   # Y 방향 cosines
-                ]
-                # (0018,0050) Slice Thickness
-                ds.SliceThickness = str(z_spacing)
-                # (0018,0088) Spacing Between Slices
-                ds.SpacingBetweenSlices = str(z_spacing)
-
-                # (0020,0052) Frame of Reference UID (묶음 식별자)
-                ds.FrameOfReferenceUID = study_uid
-
-                # (0020,1041) Slice Location (Z 좌표)
-                ds.SliceLocation = str(i * z_spacing)
-                
-                # VOI LUT Module & Rescale Module
-                ds.RescaleIntercept = str(rescale_intercept)
-                ds.RescaleSlope = str(rescale_slope)
-                
+                ds.BitsAllocated, ds.BitsStored, ds.HighBit = 16, 16, 15
+                ds.PixelRepresentation = pixel_repr
+                ds.PixelData = rotated_data.tobytes()
+                ds.RescaleIntercept, ds.RescaleSlope = f"{rescale_intercept:.8f}", f"{rescale_slope:.8f}"
+                ds.WindowCenter, ds.WindowWidth = f"{window_center:.8f}", f"{window_width:.8f}"
                 temp_dcm_path = os.path.join(temp_dicom_dir, f"slice_{i}.dcm")
-                ds.save_as(temp_dcm_path)
-                with open(temp_dcm_path,'rb') as f:
-                    resp = requests.post(
-                        f"{settings.ORTHANC_URL}/instances",
-                        data=f.read(),
-                        auth=ORTHANC_AUTH,
-                    )
+                ds.save_as(temp_dcm_path, write_like_original=False)
+                with open(temp_dcm_path, 'rb') as f:
+                    resp = requests.post(f"{settings.ORTHANC_URL}/instances", data=f.read(), auth=ORTHANC_AUTH)
                     resp.raise_for_status()
-                    orthanc_instance_ids.append(resp.json()['ID'])
+                    orthanc_ids.append(resp.json()['ID'])
             
-            logger.info(f"{len(orthanc_instance_ids)}개의 DICOM 슬라이스 업로드 완료.")
-
-            image_ids = [
-                f"wadouri:{request.build_absolute_uri(f'/api/pacs/dicom-instance-data/{instance_id}/')}"
-                for instance_id in orthanc_instance_ids
-            ]
-
-            return Response({
-                "studyInstanceUID": study_uid,
-                "seriesInstanceUID": series_uid,
-                "imageIds": image_ids
-            }, status=status.HTTP_200_OK)
+            image_ids = [f"wadouri:{request.build_absolute_uri(f'/api/pacs/dicom-instance-data/{_id}/')}" for _id in orthanc_ids]
+            return {"seriesInstanceUID": series_uid, "imageIds": image_ids}
 
         except Exception as e:
-            logger.error(f"NIfTI->DICOM 변환/업로드 중 오류 발생: {e}", exc_info=True)
-            return Response({"error": "DICOM 변환 중 서버에서 오류가 발생했습니다."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            logger.error(f"DICOM 변환 중 오류 ({gcs_path}): {e}", exc_info=True)
+            return None
         finally:
-            if os.path.exists(temp_nifti_path): os.remove(temp_nifti_path)
-            if os.path.exists(temp_dicom_dir): shutil.rmtree(temp_dicom_dir)
+            if 'temp_nifti_path' in locals() and os.path.exists(temp_nifti_path): os.remove(temp_nifti_path)
+            if 'temp_dicom_dir' in locals() and os.path.exists(temp_dicom_dir): shutil.rmtree(temp_dicom_dir)
+
+
+class NiftiToDicomView(APIView, DicomConverterMixin):
+    def post(self, request, *args, **kwargs):
+        gcs_path = request.data.get('gcs_path'); patient_uuid = request.data.get('patient_uuid')
+        image_type = request.data.get('image_type', 'unknown')
+        if not gcs_path or not patient_uuid: return Response({"error": "gcs_path, patient_uuid 필요"}, status=400)
+        
+        try:
+            # patient = get_object_or_404(OpenMRSPatient, uuid=patient_uuid)
+            class TempPatient: identifier = patient_uuid; display_name = "Unknown^Patient"
+            patient = TempPatient()
+        except (ImportError, Http404):
+            class TempPatient: identifier = patient_uuid; display_name = "Unknown^Patient"
+            patient = TempPatient()
+
+        result = self.convert_nifti_to_dicom(gcs_path, patient, generate_uid(), image_type, request)
+        if result: return Response(result)
+        return Response({"error": "DICOM 변환 서버 오류"}, status=500)
+
+
+# class NiftiToDicomBundleView(APIView, DicomConverterMixin):
+#     def post(self, request, *args, **kwargs):
+#         image_requests = request.data.get('images', []); patient_uuid = request.data.get('patient_uuid')
+#         if not image_requests or not patient_uuid: return Response({"error": "images, patient_uuid 필요"}, status=400)
+        
+#         try:
+#             # patient = get_object_or_404(OpenMRSPatient, uuid=patient_uuid)
+#             class TempPatient: identifier = patient_uuid; display_name = "Unknown^Patient"
+#             patient = TempPatient()
+#         except (ImportError, Http404):
+#             class TempPatient: identifier = patient_uuid; display_name = "Unknown^Patient"
+#             patient = TempPatient()
+
+#         results, study_uid = {}, generate_uid()
+#         for req in image_requests:
+#             image_type, gcs_path = req.get('type'), req.get('gcs_path')
+#             if image_type and gcs_path:
+#                 series_result = self.convert_nifti_to_dicom(gcs_path, patient, study_uid, image_type, request)
+#                 if series_result: results[image_type] = series_result
+#         return Response(results)
+
+class NiftiToDicomBundleView(APIView, DicomConverterMixin, SegDicomConverterMixin):
+    def post(self, request, *args, **kwargs):
+        image_requests = request.data.get('images', [])
+        patient_uuid = request.data.get('patient_uuid')
+        if not image_requests or not patient_uuid:
+            return Response({"error": "images, patient_uuid 필요"}, status=400)
+        try:
+            # patient = get_object_or_404(OpenMRSPatient, uuid=patient_uuid)
+            class TempPatient: identifier = patient_uuid; display_name = "Unknown^Patient"
+            patient = TempPatient()
+        except (ImportError, Http404):
+            class TempPatient: identifier = patient_uuid; display_name = "Unknown^Patient"
+            patient = TempPatient()
+
+        results, study_uid = {}, generate_uid()
+        for req in image_requests:
+            image_type, gcs_path = req.get('type'), req.get('gcs_path')
+            if image_type and gcs_path:
+                # 이제 SEG도 일반 DICOM 시리즈로 변환
+                series_result = self.convert_nifti_to_dicom(
+                    gcs_path, patient, study_uid, image_type, request
+                )
+                if series_result:
+                    results[image_type] = series_result
+        # for req in image_requests:
+        #     image_type, gcs_path = req.get('type'), req.get('gcs_path')
+        #     if image_type and gcs_path:
+        #         if image_type.upper() == "SEG":
+        #             series_result = self.convert_nifti_to_dicom_seg(
+        #                 gcs_path, patient, study_uid, request
+        #             )
+        #         else:
+        #             series_result = self.convert_nifti_to_dicom(
+        #                 gcs_path, patient, study_uid, image_type, request
+        #             )
+        #         if series_result:
+        #             results[image_type] = series_result
+
+        return Response(results)
+
+
+class DicomInstanceDataView(APIView):
+    authentication_classes, permission_classes = [], []
+    def get(self, request, instance_id, *args, **kwargs):
+        orthanc_url = f"{settings.ORTHANC_URL}/instances/{instance_id}/file"
+        try:
+            response = requests.get(orthanc_url, auth=ORTHANC_AUTH, stream=True)
+            response.raise_for_status()
+            return HttpResponse(response.content, content_type=response.headers['Content-Type'])
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Orthanc 인스턴스({instance_id}) GET 오류: {e}")
+            return Response({"error": "Orthanc 서버 데이터 GET 실패"}, status=502)
+
+
+class FileDeleteAPIView(APIView):
+    """
+    GCS에 있는 파일을 삭제하는 API
+    """
+    def delete(self, request, *args, **kwargs):
+        # 1. 리모컨(프론트엔드)에서 보낸 gcs_path 정보를 꺼냅니다.
+        gcs_path = request.data.get('gcs_path')
+
+        if not gcs_path:
+            return Response(
+                {"error": "삭제할 파일의 gcs_path가 필요합니다."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            # 2. GCS 경로를 '버킷 이름'과 '파일 이름(blob_name)'으로 분리합니다.
+            if not gcs_path.startswith("gs://"):
+                raise ValueError("올바르지 않은 GCS 경로 형식입니다.")
+            
+            parts = gcs_path.replace("gs://", "").split("/", 1)
+            bucket_name = parts[0]
+            blob_name = parts[1]
+
+            # 3. [핵심] GCS에 접속하여 실제 파일을 삭제하는 로직
+            # TODO: 이 부분은 실제 GCS 프로젝트 설정에 맞는 인증 과정이 필요할 수 있습니다.
+            storage_client = storage.Client()
+            bucket = storage_client.bucket(bucket_name)
+            blob = bucket.blob(blob_name)
+
+            if not blob.exists():
+                return Response(
+                    {"error": "GCS에서 해당 파일을 찾을 수 없습니다."},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            
+            # 실제 파일 삭제 명령
+            blob.delete()
+
+            print(f"파일 삭제 성공: {gcs_path}")
+
+            # 4. 성공적으로 임무를 마쳤음을 알립니다.
+            return Response(
+                {"message": f"파일 '{blob_name}'이(가) 성공적으로 삭제되었습니다."},
+                status=status.HTTP_204_NO_CONTENT # 성공 시에는 보통 내용 없이 상태 코드만 보냅니다.
+            )
+
+        except Exception as e:
+            # 5. 임무 수행 중 문제가 생기면 오류를 보고합니다.
+            print(f"GCS 파일 삭제 중 오류 발생: {e}")
+            return Response(
+                {"error": "서버에서 파일 삭제 중 오류가 발생했습니다."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+class SessionDeleteAPIView(APIView):
+    """
+    특정 세션에 속한 모든 GCS 파일을 삭제하는 API
+    """
+    def delete(self, request, *args, **kwargs):
+        # 1. 리모컨에서 보낸 patient_id와 session_id 정보를 꺼냅니다.
+        patient_id = request.data.get('patient_id')
+        session_id = request.data.get('session_id')
+
+        if not patient_id or not session_id:
+            return Response(
+                {"error": "patient_id와 session_id가 모두 필요합니다."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            # 2. 삭제할 폴더 경로를 만듭니다. (예: "nifti/환자ID/세션ID/")
+            # TODO: 이 부분은 실제 GCS 폴더 구조에 맞게 수정해야 할 수 있습니다.
+            # 예시에서는 'nifti/' 로 시작한다고 가정합니다.
+            folder_prefix = f"nifti/{patient_id}/{session_id}/"
+
+            # 3. [핵심] GCS에 접속하여 해당 폴더 안의 모든 파일을 찾아냅니다.
+            # TODO: bucket_name은 실제 사용하는 버킷 이름으로 변경해야 합니다.
+            bucket_name = "final_model_data1" 
+            storage_client = storage.Client()
+            bucket = storage_client.bucket(bucket_name)
+            
+            # folder_prefix로 시작하는 모든 파일을 리스트로 만듭니다.
+            blobs_to_delete = list(bucket.list_blobs(prefix=folder_prefix))
+
+            if not blobs_to_delete:
+                print(f"세션 폴더에 삭제할 파일이 없습니다: {folder_prefix}")
+                # 파일이 없어도 성공으로 처리할 수 있습니다.
+                return Response(
+                    {"message": "삭제할 파일이 없지만, 세션 삭제 처리 완료."},
+                    status=status.HTTP_204_NO_CONTENT
+                )
+
+            # 4. [권능 행사] 찾아낸 모든 파일을 하나씩 소멸시킵니다.
+            for blob in blobs_to_delete:
+                blob.delete()
+                print(f"파일 삭제 성공: {blob.name}")
+
+            print(f"세션 폴더 전체 삭제 성공: {folder_prefix}")
+            
+            # 5. 임무 완수를 보고합니다.
+            return Response(
+                {"message": f"세션 '{session_id}'의 모든 파일이 성공적으로 삭제되었습니다."},
+                status=status.HTTP_204_NO_CONTENT
+            )
+
+        except Exception as e:
+            print(f"GCS 세션 폴더 삭제 중 오류 발생: {e}")
+            return Response(
+                {"error": "서버에서 세션 삭제 중 오류가 발생했습니다."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+# [가상 모델 실행 함수] - 이 부분은 실제 모델 실행 로직에 맞게 수정되어야 합니다.
+def run_actual_segmentation_model(task_id, payload):
+    total_steps = 10 # 예시: 총 10단계의 작업
+    print(f"백그라운드 작업 시작: Task {task_id}")
+    try:
+        # TODO: 여기에 실제 segmentation 로직을 호출하십시오.
+        # 예: from your_ml_app.tasks import process_segmentation
+        # process_segmentation(payload) 
+        
+        # 지금은 진행률을 시뮬레이션합니다.
+        for i in range(total_steps + 1):
+            progress = int((i / total_steps) * 100)
+            cache.set(task_id, {'status': 'processing', 'progress': progress}, timeout=3600)
+            print(f"Task {task_id}: 진행률 {progress}%")
+            time.sleep(3) # 3초 딜레이로 실제 작업 시간 시뮬레이션
+        
+        # 작업 완료 후 최종 상태를 저장합니다.
+        cache.set(task_id, {'status': 'completed', 'progress': 100, 'result': 'some_result_path'}, timeout=3600)
+        print(f"Task {task_id}: 완료")
+    except Exception as e:
+        print(f"Task {task_id}: 실패 - {e}")
+        cache.set(task_id, {'status': 'failed', 'error': str(e)}, timeout=3600)
+
+# 분할 작업을 시작하는 View
+class SegmentationAPIView(APIView):
+    def post(self, request, *args, **kwargs):
+        payload = request.data
+        task_id = str(uuid.uuid4())
+        thread = threading.Thread(target=run_actual_segmentation_model, args=(task_id, payload))
+        thread.start()
+        return Response(
+            {"message": "분할 작업이 성공적으로 시작되었습니다.", "task_id": task_id},
+            status=status.HTTP_202_ACCEPTED
+        )
+
+# 작업 상태를 보고하는 View
+class TaskStatusAPIView(APIView):
+    def get(self, request, task_id, *args, **kwargs):
+        task_info = cache.get(task_id)
+        if task_info is None:
+            return Response({"status": "not_found"}, status=status.HTTP_404_NOT_FOUND)
+        return Response(task_info, status=status.HTTP_200_OK)
+
+

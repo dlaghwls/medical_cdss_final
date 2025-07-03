@@ -103,7 +103,7 @@ export const SOD2HistoryView = ({ selectedPatient }) => {
                     },
                     patient_info: {
                         age: assessment.age || 'N/A',
-                        gender: assessment.gender === 'M' ? '남성' : assessment.gender === 'F' ? '여성' : 'N/A',
+                        gender: assessment.patient_info?.gender_display || (assessment.gender === 'M' ? '남성' : assessment.gender === 'F' ? '여성' : 'N/A'),
                         stroke_type: assessment.stroke_type,
                         nihss_score: assessment.nihss_score,
                         hours_after_stroke: assessment.hours_after_stroke
@@ -111,18 +111,28 @@ export const SOD2HistoryView = ({ selectedPatient }) => {
                     exercise_recommendations: {
                         can_start: assessment.exercise_can_start,
                         intensity: assessment.exercise_intensity,
-                        monitoring_schedule: assessment.exercise_recommendations || '정기적 재평가 필요'
+                        monitoring_schedule: (() => {
+                            try {
+                                if (assessment.monitoring_schedule_display) {
+                                    const parsed = JSON.parse(assessment.monitoring_schedule_display.replace(/'/g, '"'));
+                                    return parsed.text || '정기적 재평가 필요';
+                                }
+                                return '정기적 재평가 필요';
+                            } catch (e) {
+                                return '정기적 재평가 필요';
+                            }
+                        })()
                     },
-                    clinical_recommendations: assessment.clinical_recommendations ? 
-                        (Array.isArray(assessment.clinical_recommendations) ? 
-                         assessment.clinical_recommendations : 
-                         assessment.clinical_recommendations.split('\n')) : 
+                    clinical_recommendations: assessment.clinical_recommendations ?
+                        (Array.isArray(assessment.clinical_recommendations) ?
+                            assessment.clinical_recommendations :
+                            assessment.clinical_recommendations.split('\n')) :
                         [],
                     sod2_prediction_data: assessment.sod2_prediction_data || []
                 }
             };
         }
-        
+
         // 기존 구조는 그대로 반환 (호환성)
         return assessment;
     };
@@ -130,11 +140,11 @@ export const SOD2HistoryView = ({ selectedPatient }) => {
     return (
         <div>
             <h4>SOD2 평가 이력</h4>
-            
+
             {/* 차트 영역 */}
-            <div style={{ 
-                height: '300px', 
-                marginBottom: '30px', 
+            <div style={{
+                height: '300px',
+                marginBottom: '30px',
                 padding: '20px',
                 border: '1px solid #e9ecef',
                 borderRadius: '8px',
@@ -142,7 +152,7 @@ export const SOD2HistoryView = ({ selectedPatient }) => {
             }}>
                 <Line data={chartData} options={chartOptions} />
             </div>
-            
+
             {/* 개별 평가 결과들 */}
             <div>
                 <h5>상세 평가 기록</h5>
@@ -158,10 +168,10 @@ export const SOD2HistoryView = ({ selectedPatient }) => {
                         }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
                                 <strong>평가 일시: {new Date(normalizedData.recorded_at).toLocaleString()}</strong>
-                                <span style={{ 
-                                    padding: '4px 8px', 
-                                    backgroundColor: '#28a745', 
-                                    color: 'white', 
+                                <span style={{
+                                    padding: '4px 8px',
+                                    backgroundColor: '#28a745',
+                                    color: 'white',
                                     borderRadius: '4px',
                                     fontSize: '0.8em'
                                 }}>
