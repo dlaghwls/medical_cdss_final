@@ -19,7 +19,9 @@ class ChatSession(models.Model):
     )
 
     source_table = models.CharField(max_length=100, help_text="e.g., 'gene_ai_result', 'diagnosis_ai_result'")
-    source_id = models.UUIDField(help_text="UUID of the record in source_table (e.g., gene_ai_result.id)")
+    # source_id = models.UUIDField(help_text="UUID of the record in source_table (e.g., gene_ai_result.id)")
+    # 
+    source_id = models.CharField(max_length=50, help_text="ID of the record in source_table (can be int or UUID)")
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

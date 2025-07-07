@@ -15,7 +15,9 @@ class ChatSession(Base):
     patient_id = Column(UUID(as_uuid=True), ForeignKey("openmrs_integration_openmrspatient.uuid"), nullable=False)
     
     source_table = Column(String)
-    source_id = Column(UUID(as_uuid=True))
+    # 추교상넌할수있어
+    #source_id = Column(UUID(as_uuid=True))
+    source_id = Column(String)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     # patient 객체와의 관계 설정 (optional, but useful for SQLAlchemy queries)

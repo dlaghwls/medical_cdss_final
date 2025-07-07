@@ -671,13 +671,45 @@ class NiftiUploadView(APIView):
         return Response({'results': result}, status=201)
 
 
-####### 유정우넌할수있어 nnunet성공이후 추가 ###########
+# ####### 유정우넌할수있어 nnunet성공이후 추가 ###########
+# class ListPatientSessionsView(APIView):
+#     def get(self, request, patient_uuid, *args, **kwargs):
+#         logger.info(f"GCS 파일 목록 조회 시작. 환자 UUID: {patient_uuid}")
+#         try:
+#             storage_client = storage.Client()
+#             bucket = storage_client.bucket("final_model_data1")
+#             prefix = f"nifti/{patient_uuid}/"
+#             blobs = list(bucket.list_blobs(prefix=prefix))
+            
+#             if not blobs:
+#                 return Response({"sessions": []})
+
+#             sessions_data = defaultdict(lambda: defaultdict(list))
+#             for blob in blobs:
+#                 parts = blob.name.split('/')
+#                 if len(parts) >= 5 and parts[-1]:
+#                     session_id, modality, file_name = parts[2], parts[3], parts[4]
+#                     sessions_data[session_id][modality.lower()].append({
+#                         "name": file_name,
+#                         "gcs_path": f"gs://{bucket.name}/{blob.name}",
+#                     })
+            
+#             if not sessions_data: return Response({"sessions": []})
+
+#             formatted_sessions = [{"sessionId": sid, "modalities": mods} for sid, mods in sessions_data.items()]
+#             sorted_sessions = sorted(formatted_sessions, key=lambda s: s['sessionId'], reverse=True)
+#             return Response({"sessions": sorted_sessions})
+#         except Exception as e:
+#             logger.error(f"GCS 파일 목록 조회 중 오류: {e}", exc_info=True)
+#             return Response({"error": "서버 오류"}, status=500)
+
 class ListPatientSessionsView(APIView):
     def get(self, request, patient_uuid, *args, **kwargs):
         logger.info(f"GCS 파일 목록 조회 시작. 환자 UUID: {patient_uuid}")
         try:
             storage_client = storage.Client()
-            bucket = storage_client.bucket("final_model_data1")
+            # 💡 버킷 이름을 settings에서 가져오거나 하드코딩된 값으로 수정하세요.
+            bucket = storage_client.bucket("final_model_data1") 
             prefix = f"nifti/{patient_uuid}/"
             blobs = list(bucket.list_blobs(prefix=prefix))
             
@@ -686,100 +718,59 @@ class ListPatientSessionsView(APIView):
 
             sessions_data = defaultdict(lambda: defaultdict(list))
             for blob in blobs:
-                parts = blob.name.split('/')
-                if len(parts) >= 5 and parts[-1]:
-                    session_id, modality, file_name = parts[2], parts[3], parts[4]
-                    sessions_data[session_id][modality.lower()].append({
-                        "name": file_name,
-                        "gcs_path": f"gs://{bucket.name}/{blob.name}",
-                    })
-            
-            if not sessions_data: return Response({"sessions": []})
+                # ✨ 임시 파일을 생성하고 삭제하기 위한 변수 초기화
+                temp_file_path = None
+                try:
+                    parts = blob.name.split('/')
+                    if len(parts) >= 5 and parts[-1]:
+                        session_id, modality, file_name = parts[2], parts[3], parts[4]
+                        
+                        metadata = {}
+                        try:
+                            # 1. 고유한 이름을 가진 임시 파일을 생성합니다.
+                            with tempfile.NamedTemporaryFile(delete=False, suffix=".nii.gz") as tmp_file:
+                                temp_file_path = tmp_file.name
+                            
+                            # 2. GCS의 파일을 이 임시 파일로 다운로드합니다.
+                            blob.download_to_filename(temp_file_path)
+                            
+                            # 3. 이제 파일 '경로'를 사용하므로 nib.load가 확실하게 동작합니다.
+                            nifti_img = nib.load(temp_file_path)
+                            
+                            shape = nifti_img.shape
+                            zooms = nifti_img.header.get_zooms()
+                            
+                            metadata = {
+                                "resolution": f"{shape[0]}x{shape[1]}",
+                                "sliceThickness": float(f"{zooms[2]:.2f}")
+                            }
+                        except Exception as meta_error:
+                            logger.warning(f"메타데이터 추출 실패 ({blob.name}): {meta_error}")
+                            metadata = {}
+
+                        sessions_data[session_id][modality.lower()].append({
+                            "name": file_name,
+                            "gcs_path": f"gs://{bucket.name}/{blob.name}",
+                            "metadata": metadata
+                        })
+                except Exception as e:
+                    logger.error(f"세션 처리 중 오류 ({blob.name}): {e}")
+                    continue
+                finally:
+                    # 4. try-except 로직이 끝나면 항상 임시 파일을 삭제하여 서버에 쓰레기 파일이 남지 않도록 합니다.
+                    if temp_file_path and os.path.exists(temp_file_path):
+                        os.remove(temp_file_path)
+
+            if not sessions_data: 
+                return Response({"sessions": []})
 
             formatted_sessions = [{"sessionId": sid, "modalities": mods} for sid, mods in sessions_data.items()]
             sorted_sessions = sorted(formatted_sessions, key=lambda s: s['sessionId'], reverse=True)
             return Response({"sessions": sorted_sessions})
+            
         except Exception as e:
             logger.error(f"GCS 파일 목록 조회 중 오류: {e}", exc_info=True)
             return Response({"error": "서버 오류"}, status=500)
-
-                
-# class DicomConverterMixin:
-#     def convert_nifti_to_dicom(self, gcs_path, patient, study_uid, image_type, request):
-#         logger.info(f"DICOM 변환 시작 ({image_type}): {gcs_path}")
-#         safe_temp_dir = os.path.join(settings.BASE_DIR, 'temp_files')
-#         os.makedirs(safe_temp_dir, exist_ok=True)
-#         temp_nifti_path = os.path.join(safe_temp_dir, f"{uuid.uuid4()}.nii.gz")
-#         temp_dicom_dir = tempfile.mkdtemp(dir=safe_temp_dir)
-        
-#         try:
-#             storage_client = storage.Client()
-#             bucket_name, blob_name = gcs_path.replace("gs://", "").split("/", 1)
-#             bucket = storage_client.bucket(bucket_name)
-#             bucket.blob(blob_name).download_to_filename(temp_nifti_path)
-            
-#             nifti_img = nib.load(temp_nifti_path)
-#             img_data = nifti_img.get_fdata()
-
-#             # ==== [여기만 변경!] ====
-#             if image_type.upper() == 'SEG':
-#                 logger.info("SEG 변환은 SegDicomConverterMixin에서만 처리, 기존 믹스인에서는 무시 후 None 반환")
-#                 return None
-#             # ==== [여기까지!] ====
-
-#             # 아래는 100% 기존 FLAIR/DWI/ADC 변환 로직 그대로!
-#             window_center, window_width = 115.0, 4186.0
-#             real_min, real_max = np.min(img_data), np.max(img_data)
-#             int_max, int_min = np.iinfo(np.int16).max, np.iinfo(np.int16).min
-#             rescale_slope = (real_max - real_min) / (int_max - int_min) if real_max != real_min else 1.0
-#             rescale_intercept = real_min
-
-#             series_uid = generate_uid()
-#             orthanc_ids = []
-
-#             for i in range(img_data.shape[2]):
-#                 slice_float = img_data[:, :, i]
-#                 scaled_slice = ((slice_float - rescale_intercept) / rescale_slope) + int_min if rescale_slope != 0 else np.zeros_like(slice_float)
-#                 pixel_data, pixel_repr = scaled_slice.astype(np.int16), 1
-
-#                 rotated_data = np.rot90(pixel_data, k=3)
-#                 ds = FileDataset(None, {}, file_meta=FileMetaDataset(), preamble=b"\0" * 128)
-#                 ds.file_meta.MediaStorageSOPClassUID = pydicom.uid.MRImageStorage
-#                 ds.file_meta.MediaStorageSOPInstanceUID = generate_uid()
-#                 ds.file_meta.TransferSyntaxUID = pydicom.uid.ExplicitVRLittleEndian
-#                 ds.PatientID, ds.PatientName = patient.identifier, patient.display_name.replace(' ', '^')
-#                 ds.StudyInstanceUID, ds.SeriesInstanceUID = study_uid, series_uid
-#                 ds.SOPInstanceUID, ds.SOPClassUID = ds.file_meta.MediaStorageSOPInstanceUID, ds.file_meta.MediaStorageSOPClassUID
-#                 ds.Modality, ds.InstanceNumber, ds.ImageType = "MR", str(i + 1), ["DERIVED", "PRIMARY"]
-#                 ds.StudyDate, ds.StudyTime = datetime.now().strftime('%Y%m%d'), datetime.now().strftime('%H%M%S')
-#                 pix_zooms = nifti_img.header.get_zooms()[:2]
-#                 ds.PixelSpacing = [f"{z:.8f}" for z in reversed(pix_zooms)]
-#                 ds.Rows, ds.Columns = rotated_data.shape
-#                 ds.SamplesPerPixel = 1
-#                 ds.PhotometricInterpretation = "MONOCHROME2"
-#                 ds.BitsAllocated, ds.BitsStored, ds.HighBit = 16, 16, 15
-#                 ds.PixelRepresentation = pixel_repr
-#                 ds.PixelData = rotated_data.tobytes()
-#                 ds.RescaleIntercept, ds.RescaleSlope = f"{rescale_intercept:.8f}", f"{rescale_slope:.8f}"
-#                 ds.WindowCenter, ds.WindowWidth = f"{window_center:.8f}", f"{window_width:.8f}"
-#                 temp_dcm_path = os.path.join(temp_dicom_dir, f"slice_{i}.dcm")
-#                 ds.save_as(temp_dcm_path, write_like_original=False)
-#                 with open(temp_dcm_path, 'rb') as f:
-#                     resp = requests.post(f"{settings.ORTHANC_URL}/instances", data=f.read(), auth=ORTHANC_AUTH)
-#                     resp.raise_for_status()
-#                     orthanc_ids.append(resp.json()['ID'])
-            
-#             image_ids = [f"wadouri:{request.build_absolute_uri(f'/api/pacs/dicom-instance-data/{_id}/')}" for _id in orthanc_ids]
-#             return {"seriesInstanceUID": series_uid, "imageIds": image_ids}
-
-#         except Exception as e:
-#             logger.error(f"DICOM 변환 중 오류 ({gcs_path}): {e}", exc_info=True)
-#             return None
-#         finally:
-#             if 'temp_nifti_path' in locals() and os.path.exists(temp_nifti_path): os.remove(temp_nifti_path)
-#             if 'temp_dicom_dir' in locals() and os.path.exists(temp_dicom_dir): shutil.rmtree(temp_dicom_dir)
-
-
 
 class DicomConverterMixin:
     def convert_nifti_to_dicom(self, gcs_path, patient, study_uid, image_type, request):
@@ -880,27 +871,6 @@ class NiftiToDicomView(APIView, DicomConverterMixin):
         if result: return Response(result)
         return Response({"error": "DICOM 변환 서버 오류"}, status=500)
 
-
-# class NiftiToDicomBundleView(APIView, DicomConverterMixin):
-#     def post(self, request, *args, **kwargs):
-#         image_requests = request.data.get('images', []); patient_uuid = request.data.get('patient_uuid')
-#         if not image_requests or not patient_uuid: return Response({"error": "images, patient_uuid 필요"}, status=400)
-        
-#         try:
-#             # patient = get_object_or_404(OpenMRSPatient, uuid=patient_uuid)
-#             class TempPatient: identifier = patient_uuid; display_name = "Unknown^Patient"
-#             patient = TempPatient()
-#         except (ImportError, Http404):
-#             class TempPatient: identifier = patient_uuid; display_name = "Unknown^Patient"
-#             patient = TempPatient()
-
-#         results, study_uid = {}, generate_uid()
-#         for req in image_requests:
-#             image_type, gcs_path = req.get('type'), req.get('gcs_path')
-#             if image_type and gcs_path:
-#                 series_result = self.convert_nifti_to_dicom(gcs_path, patient, study_uid, image_type, request)
-#                 if series_result: results[image_type] = series_result
-#         return Response(results)
 
 class NiftiToDicomBundleView(APIView, DicomConverterMixin, SegDicomConverterMixin):
     def post(self, request, *args, **kwargs):

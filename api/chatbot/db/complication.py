@@ -1,24 +1,18 @@
 # /home/shared/medical_cdss/api/chatbot/db/complication.py
-
 from sqlalchemy import Column, String, Float, DateTime, ForeignKey, Integer
-from sqlalchemy.dialects.postgresql import UUID as SQL_UUID
+from sqlalchemy.orm import relationship  # relationship 임포트
 from .session import Base
-import uuid
-from datetime import datetime
 
 class ComplicationPrediction(Base):
-    # Django의 ml_models_complicationprediction 테이블과 연결
     __tablename__ = 'ml_models_complicationprediction'
     
-    # Django가 자동으로 만드는 id 컬럼을 기본 키로 사용
     id = Column(Integer, primary_key=True, autoincrement=True)
     
-    # Django 모델의 task 필드를 통해 patient_id를 가져와야 하지만,
-    # 편의를 위해 DB에 patient_id가 직접 저장된다고 가정합니다.
-    # 만약 task를 통해 연결해야 한다면 이 부분의 로직 수정이 필요합니다.
-    patient_id = Column(SQL_UUID(as_uuid=True), ForeignKey('openmrs_integration_openmrspatient.uuid'))
-    
-    complication_type = Column(String)
+    # [수정] patient_id 대신 task_id를 사용하고 PredictionTask와 관계를 설정합니다.
+    task_id = Column(Integer, ForeignKey('ml_models_predictiontask.id'))
+    task = relationship("PredictionTask") # JOIN을 위해 관계 설정
+
+    complication_type = Column(String) # Django 모델 필드 이름이 'complication_type'이므로, 'prediction_type'에서 변경하거나 Django 모델을 확인해야 합니다.
     probability = Column(Float)
     risk_level = Column(String)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    # created_at은 이 테이블에 없으므로 삭제하거나, task에서 가져와야 합니다.

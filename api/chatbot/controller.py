@@ -7,11 +7,17 @@ from schema import (
     SessionListResponse,
     ChatMessageSchema,
     ChatSessionSchema,
-    GeneAIResultSchema # GeneAIResultSchema 임포트 확인
+    GeneAIResultSchema, # GeneAIResultSchema 임포트 확인
+    AntioxidantResultSchema,
+    ComplicationResultSchema,
+    MortalityResultSchema
 )
 from db.session import SessionLocal
 from db.chatbot import ChatSession, ChatMessage
 from db.gene import GeneAIResult
+from db.sod2 import SOD2Assessment, PredictionTask
+from db.complication import ComplicationPrediction
+from db.mortality import StrokeMortalityPrediction
 from db.openmrs_patient import OpenMRSPatientSQL
 from services.llm import summarize_result, answer_question
 from datetime import datetime
@@ -35,24 +41,54 @@ def handle_init_chat(request: InitChatRequest) -> InitChatResponse:
             )
 
         result_text = "지원하지 않는 source_table입니다"
-        if request.source_table == "gene_ai_result":
-            gene_result = db.query(GeneAIResult).filter(
-                GeneAIResult.id == request.source_id,
-                GeneAIResult.patient_id == patient_obj.uuid
-            ).first()
+        # if request.source_table == "gene_ai_result":
+        #     gene_result = db.query(GeneAIResult).filter(
+        #         GeneAIResult.id == request.source_id,
+        #         GeneAIResult.patient_id == patient_obj.uuid
+        #     ).first()
 
-            if gene_result:
-                result_text = gene_result.result_text
-            else:
-                raise HTTPException(
-                    status_code=404,
-                    detail=f"Gene AI result with ID {request.source_id} for patient {request.patient_uuid} not found."
-                )
+        #     if gene_result:
+        #         result_text = gene_result.result_text
+        #     else:
+        #         raise HTTPException(
+        #             status_code=404,
+        #             detail=f"Gene AI result with ID {request.source_id} for patient {request.patient_uuid} not found."
+        #         )
+        # else:
+        #     raise HTTPException(
+        #         status_code=400,
+        #         detail=f"Unsupported source_table: {request.source_table}"
+        #     )
+
+        # try:
+        #     summary = summarize_result(result_text)
+        # 추교상넌할수있어
+        # [수정] 모든 source_table에 대한 분기 처리 및 ID 타입 변환 추가
+        if request.source_table == "gene_ai_result":
+            result_obj = db.query(GeneAIResult).filter(GeneAIResult.id == request.source_id).first()
+            if result_obj:
+                result_text = result_obj.result_text
+        
+        elif request.source_table == "antioxidant_result":
+            result_obj = db.query(SOD2Assessment).filter(SOD2Assessment.id == int(request.source_id)).first()
+            if result_obj:
+                result_text = f"SOD2 항산화 평가 결과, 현재 SOD2 수치는 {result_obj.sod2Level}이며 산화 스트레스 위험도는 '{result_obj.stressRisk}'입니다."
+        
+        elif request.source_table == "complication_result":
+            result_obj = db.query(ComplicationPrediction).filter(ComplicationPrediction.id == int(request.source_id)).first()
+            if result_obj:
+                result_text = f"합병증 예측 결과, '{result_obj.complication_type}'의 발생 확률은 {(result_obj.probability * 100):.1f}%, 위험도는 '{result_obj.risk_level}'입니다."
+        
+        elif request.source_table == "mortality_result":
+            result_obj = db.query(StrokeMortalityPrediction).filter(StrokeMortalityPrediction.id == int(request.source_id)).first()
+            if result_obj:
+                result_text = f"뇌졸중 사망률 예측 결과, 30일 내 사망 확률은 {(result_obj.mortality_rate * 100):.1f}%, 위험도는 '{result_obj.risk_level}'입니다."
+        
         else:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Unsupported source_table: {request.source_table}"
-            )
+            raise HTTPException(status_code=400, detail=f"Unsupported source_table: {request.source_table}")
+
+        if not result_obj:
+             raise HTTPException(status_code=404, detail=f"Result with ID {request.source_id} not found in table {request.source_table}.")
 
         try:
             summary = summarize_result(result_text)
@@ -260,5 +296,89 @@ def get_gene_ai_results_for_patient(patient_uuid: UUID) -> list[GeneAIResultSche
     except Exception as e:
         print(f"An unexpected error occurred in get_gene_ai_results_for_patient: {e}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
+    finally:
+        db.close()
+
+
+def get_antioxidant_results_for_patient(patient_uuid: UUID) -> list[AntioxidantResultSchema]:
+    db = SessionLocal()
+    try:
+        results = (
+            db.query(SOD2Assessment)
+            .join(PredictionTask, SOD2Assessment.task_id == PredictionTask.id)
+            .filter(PredictionTask.patient_id == patient_uuid)
+            .order_by(PredictionTask.created_at.desc())
+            .all()
+        )
+        
+        # [수정] 스키마 변환 시 created_at을 task에서 직접 가져와 채워줍니다.
+        response_list = []
+        for r in results:
+            response_list.append(
+                AntioxidantResultSchema(
+                    id=r.id,
+                    sod2Level=r.sod2Level,
+                    stressRisk=r.stressRisk,
+                    created_at=r.task.created_at # task에서 생성 시간을 가져옵니다.
+                )
+            )
+        return response_list
+    finally:
+        db.close()
+
+def get_complication_results_for_patient(patient_uuid: UUID) -> list[ComplicationResultSchema]:
+    db = SessionLocal()
+    try:
+        # [수정] PredictionTask와 JOIN하여 patient_id로 필터링하고, created_at으로 정렬합니다.
+        results = (
+            db.query(ComplicationPrediction)
+            .join(PredictionTask, ComplicationPrediction.task_id == PredictionTask.id)
+            .filter(PredictionTask.patient_id == patient_uuid)
+            .order_by(PredictionTask.created_at.desc())
+            .all()
+        )
+        
+        # [수정] 스키마를 수동으로 생성하여 필요한 모든 정보를 채워줍니다.
+        response = []
+        for r in results:
+            response.append(
+                ComplicationResultSchema(
+                    id=r.id,
+                    patient_id=str(r.task.patient_id), # task에서 환자 ID를 가져옵니다.
+                    complication_type=r.complication_type,
+                    probability=r.probability,
+                    risk_level=r.risk_level,
+                    created_at=r.task.created_at # task에서 생성 시간을 가져옵니다.
+                )
+            )
+        return response
+    finally:
+        db.close()
+
+def get_mortality_results_for_patient(patient_uuid: UUID) -> list[MortalityResultSchema]:
+    db = SessionLocal()
+    try:
+        # [수정] PredictionTask와 JOIN하여 patient_id로 필터링하고, created_at으로 정렬합니다.
+        results = (
+            db.query(StrokeMortalityPrediction)
+            .join(PredictionTask, StrokeMortalityPrediction.task_id == PredictionTask.id)
+            .filter(PredictionTask.patient_id == patient_uuid)
+            .order_by(PredictionTask.created_at.desc())
+            .all()
+        )
+        
+        # [수정] 스키마를 수동으로 생성하여 필요한 모든 정보를 채워줍니다.
+        response = []
+        for r in results:
+            response.append(
+                MortalityResultSchema(
+                    id=r.id,
+                    patient_id=str(r.task.patient_id), # task에서 환자 ID를 가져옵니다.
+                    mortality_rate=r.mortality_rate,
+                    risk_level=r.risk_level,
+                    created_at=r.task.created_at # task에서 생성 시간을 가져옵니다.
+                )
+            )
+        return response
     finally:
         db.close()

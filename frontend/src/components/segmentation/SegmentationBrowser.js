@@ -377,8 +377,32 @@ const SegmentationBrowser = ({ selectedPatient }) => {
                         <h3 style={styles.h3}>상세 정보</h3>
                         <div style={styles.detailPanel}>
                             {selectedSession ? (
-                                <div> <h4 style={{...styles.cardTitle, fontSize: '1.25rem'}}>선택된 세션: {selectedSession.sessionId}</h4> </div>
+                                // 선택된 세션이 있을 경우, 상세 정보를 렌더링합니다.
+                                <div>
+                                    <h4 style={{...styles.cardTitle, fontSize: '1.1rem', marginBottom: '1rem'}}>
+                                        세션: {selectedSession.sessionId}
+                                    </h4>
+
+                                    {/* 각 시리즈의 메타데이터를 표시 */}
+                                    {Object.entries(selectedSession.modalities).map(([modality, files]) => {
+                                        // 해당 시리즈의 첫 번째 파일 메타데이터를 사용 (대부분 동일하므로)
+                                        const metadata = files[0]?.metadata;
+                                        if (!metadata) return null; // 메타데이터가 없으면 표시 안 함
+
+                                        return (
+                                            <div key={modality} style={{ marginBottom: '1rem', borderBottom: '1px solid #e5e7eb', paddingBottom: '0.75rem' }}>
+                                                <p style={{ fontWeight: 'bold', color: '#0c4a6e' }}>{modality.toUpperCase()}</p>
+                                                <ul style={{ listStyle: 'none', paddingLeft: '1rem', fontSize: '0.875rem', color: '#4b5567' }}>
+                                                    <li><strong>해상도:</strong> {metadata.resolution || 'N/A'}</li>
+                                                    <li><strong>슬라이스 두께:</strong> {metadata.sliceThickness ? `${metadata.sliceThickness} mm` : 'N/A'}</li>
+                                                </ul>
+                                            </div>
+                                        );
+                                    })}
+
+                                </div>
                             ) : (
+                                // 선택된 세션이 없을 경우, 안내 메시지를 표시합니다.
                                 <p style={styles.detailPlaceholderText}>왼쪽 목록에서 분석할 세션을 선택하세요.</p>
                             )}
                         </div>
